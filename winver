@@ -1,0 +1,123 @@
+#!/bin/bash
+
+# Skript för att läsa Windows-version och Produktnyckel offline
+
+clear
+echo -e "--- WINDOWS INFO & NYCKEL-EXTRAKTOR ---"
+
+lsblk
+read -r -p $'\nVilken partition är kundens WINDOWS-partition? (t.ex. sda3 eller nvme0n1p3): ' SRC1
+
+# Säkerhetskontroll för BitLocker
+if blkid /dev/$SRC1 | grep -q "BitLocker"; then
+    echo -e "\n❌ VARNING: Disken är BitLocker-krypterad!"
+    echo "Du måste låsa upp den med 'dislocker' manuellt innan du kan läsa filer."
+    exit 1
+fi
+
+# Skapa en temporär read-only mapp
+MNT_PATH="/mnt/win_temp"
+mkdir -p "$MNT_PATH"
+
+echo -e "\nMonterar disken (Read-Only)..."
+if ! mount -t ntfs-3g -o ro /dev/${SRC1} "${MNT_PATH}"; then
+    echo "❌ Kunde inte mounta disken. Avbryter."
+    exit 1
+fi
+
+# Hitta SOFTWARE-filen oavsett om mapparna har stora eller små bokstäver
+SOFT_PATH=$(find "${MNT_PATH}" -maxdepth 4 -ipath "*/windows/system32/config/software" | head -n 1)
+
+if [[ -z "$SOFT_PATH" ]]; then
+    echo "❌ Hittade ingen SOFTWARE-fil. Är du säker på att detta är Windows-partitionen?"
+    umount "${MNT_PATH}"
+    exit 1
+fi
+
+echo -e "✅ Hittade Windows Registry!\n"
+echo "---------------------------------------------------"
+
+# Läs Windows Version
+PROD_NAME=$(hivexget "$SOFT_PATH" 'Microsoft\Windows NT\CurrentVersion' ProductName 2>/dev/null)
+DISP_VER=$(hivexget "$SOFT_PATH" 'Microsoft\Windows NT\CurrentVersion' DisplayVersion 2>/dev/null)
+BUILD=$(hivexget "$SOFT_PATH" 'Microsoft\Windows NT\CurrentVersion' CurrentBuild 2>/dev/null)
+
+echo -e "💻 WINDOWS VERSION (Hårddisk):"
+if [[ -n "$PROD_NAME" ]]; then
+    INFO_OS="OS: $PROD_NAME (Version: $DISP_VER, Build: $BUILD)"
+    echo "$INFO_OS"
+else
+    INFO_OS="Kunde inte läsa Windows-version."
+    echo "$INFO_OS"
+fi
+
+echo ""
+
+# Läs Produktnyckel från Registry
+WIN_KEY=$(hivexget "$SOFT_PATH" 'Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform' BackupProductKeyDefault 2>/dev/null)
+
+echo -e "🔑 PRODUKTNYCKEL (Från Hårddisken):"
+if [[ -n "$WIN_KEY" ]]; then
+    INFO_KEY="$WIN_KEY"
+    echo "$INFO_KEY"
+else
+    INFO_KEY="Ingen modern nyckel hittades i mjukvaran (Gammalt OS eller digital licens)."
+    echo "$INFO_KEY"
+fi
+
+echo "---------------------------------------------------"
+
+# Kolla moderkortets inbyggda BIOS/UEFI-nyckel (OEM)
+echo -e "\n🔑 OEM-NYCKEL (Inbyggd i denna dators moderkort):"
+if [ -f /sys/firmware/acpi/tables/MSDM ]; then
+    OEM_KEY=$(cat /sys/firmware/acpi/tables/MSDM | strings | tail -n 1)
+    echo "$OEM_KEY"
+else
+    OEM_KEY="Ingen inbyggd nyckel i moderkortet."
+    echo "$OEM_KEY"
+fi
+
+echo -e "\nAvmonterar disken..."
+umount "${MNT_PATH}"
+
+# =========================================================================
+# RAPPORTERING TILL SERVER
+# =========================================================================
+echo -e "\n=================================================="
+read -r -p "Ange ordernummer för att spara en rapport (eller tryck Enter för att hoppa över): " ORDERNUMBER
+
+if [[ -n "$ORDERNUMBER" ]]; then
+    REPORT_DIR="/mnt/backupserver"
+    REPORT="$REPORT_DIR/${ORDERNUMBER} - Windows information.log"
+    
+    # Kontrollera att servern faktiskt är mountad
+    if [ ! -d "$REPORT_DIR" ]; then
+        echo "❌ VARNING: Mappen $REPORT_DIR finns inte!"
+        echo "Servern verkar inte vara mountad. Rapporten kunde inte sparas."
+    else
+        # Skapa rapporten
+        echo "==================================================" > "$REPORT"
+        echo " WINDOWS INFORMATION REPORT" >> "$REPORT"
+        echo " Ordernummer: $ORDERNUMBER" >> "$REPORT"
+        echo " Datum: $(date)" >> "$REPORT"
+        echo "==================================================" >> "$REPORT"
+        echo "" >> "$REPORT"
+        echo "[ WINDOWS VERSION ]" >> "$REPORT"
+        echo "$INFO_OS" >> "$REPORT"
+        echo "" >> "$REPORT"
+        echo "[ PRODUKTNYCKEL (HÅRDDISK) ]" >> "$REPORT"
+        echo "$INFO_KEY" >> "$REPORT"
+        echo "" >> "$REPORT"
+        echo "[ OEM-NYCKEL (MODERKORT) ]" >> "$REPORT"
+        echo "$OEM_KEY" >> "$REPORT"
+        echo "" >> "$REPORT"
+        echo "==================================================" >> "$REPORT"
+        
+        echo "✅ Rapporten har sparats på servern som:"
+        echo "$REPORT"
+    fi
+else
+    echo "Ingen rapport sparades."
+fi
+
+echo "✅ Klart!"

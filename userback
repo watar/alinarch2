@@ -1,0 +1,194 @@
+#!/bin/bash
+
+#
+# Uppdaterat backupscript, slippa hårdkodningen av vilka mappar som behöver användas
+# Lokalt script ifall disk(arna) redan är mountade, så får man välja vart och fortsätta som vanligt.
+#
+
+MNTDIR="/mnt"
+
+# .110 = KH, .120=Enk, .140=Öst, .130=NK
+SERVERS=(10.110.20.10
+  10.120.20.80
+  10.130.20.210
+  10.140.20.201
+  10.130.3.210) 
+
+ipmatch=$(awk '/32 host/ {print f} {f=$2}' <<< "$(</proc/net/fib_trie)" | cut -f1-3 -d. | sed -n '1p')
+
+# Ett annat kortare sätt att få fram ipt ska testa detta när jag har tid
+# ip a | awk '/10.../ {print $2}' | cut -f1 -d/
+
+read -r -p $'\x0aMounta kunds disk source?. Om ja välj y. Är disken redan mountad välj n. y/n: ' yn
+
+if [[ $yn == "y" || $yn == "Y" ]]; then
+    lsblk
+    read -r -p $'\x0aVilken disk vill du mounta? ' SRC1
+
+    echo -e "Vart ska kunds disk mountas? ex. disk1, disk2 o.sv. Reffar till /mnt/diskX\n"
+    ls "${MNTDIR}" | awk '/disk/'
+
+# Didn't come up with a prettier way than having to type the source, and then select the source in the next to be able to 
+# send the source to a varialble for the actual copy below.
+
+read -r -p $'\x0aVälj ett alternativ. ' SRC2
+
+    select mpoint in "${SRC2}"; do
+      case $mpoint in
+        "${SRC2}") ntfsfix /dev/${SRC1} ; mount /dev/${SRC1} /${MNTDIR}/${SRC2} -o remove_hiberfile; break
+          ;;
+        "exit") exit
+          ;;
+      esac
+    done
+  else
+    if [[ $yn == "n" || $yn == "N" ]]; then
+      ls "${MNTDIR}" | awk '/disk/'
+        read -r -p $'\x0avilken katalog är kunds disk mountad på? ' SRC2
+    fi
+fi
+
+read -r -p $'\x0aVälj destination?. Om ja välj y. Är destination redan mountad, välj n. y/n: ' yn
+
+if [[ $yn == "y" || $yn == "Y" ]]; then
+    lsblk
+    read -r -p $'Vilken disk ska backup läggas på?\x0a' DST3
+      echo -e "Vilken katalog ska backupen läggas i? \n"
+      ls "${MNTDIR}" | awk '/disk/'
+
+    read -r -p $'\x0aVälj ett alternativ. ' DST2
+
+    select mpoint2 in "${DST2}" "exit" ; do
+       case $mpoint2 in
+         "${DST2}") mount /dev/${DST3} $MNTDIR/${DST2}; break
+           ;;
+         "exit") exit
+           ;;
+       esac
+    done
+  else
+    if [[ $yn == "n" || $yn == "N" ]]; then
+      read -r -p $'\x0aBackupa över nätverk? y/n ' yn
+      if [[ $yn == "y" || $yn == "Y" ]]; then
+        read -r -p $'\x0aOBS! Skriv backupserver för att mounta backupservern korrekt ' DST2
+
+  for ((i =0; i < ${#SERVERS[@]}; i++))
+  do
+    if [[ $(echo ${SERVERS[$i]} | cut -f1-3 -d.) == $ipmatch ]];
+    then
+      umount /mnt/backupserver ; mount -t cifs //${SERVERS[$i]}/backup /mnt/backupserver -o username=backup,password=backup,iocharset=utf8,uid=1000,gid=1000
+    else
+      echo 2&>1 > /dev/null
+    fi
+  done
+    elif [[ $yn == "n" || $yn == "N" ]]; then
+          ls "${MNTDIR}"
+          echo -e ""
+          echo -e $SRC2 "OBS! Är mountad redan"
+          echo -e ""
+          read -r -p $'\x0avilken katalog är destination mountad på? ' DST2
+       fi
+   fi
+fi
+
+ls "${MNTDIR}"/"${SRC2}"/Users
+read -r -p "Välj user katalog som ska backupas " USER
+
+# La till ett mindre känt read-kommando för att lägga till ett radbyte.
+# Du kan lägga till \x0a vart som helst på raden för att få till radbyten i ett read-kommando.
+# Se bara till att använda enkla cituationstecken samt dollartecken framför.
+
+read -r -p $'\x0aAnge Ordernr ex. NVN, NOF, UVN ' NVN
+
+echo -e "Kommer backupa filer från ${USER} till ${MNTDIR}/${DST2}/${NVN}/${USER}\n"
+
+
+# Checkar om backupserver är mountad och att man angett backupserver som destination
+# Om det inte stämmer så exitar scriptet, för om mountingen inte har gjorts så kommer backup fortfarande att göras
+# till /mnt/backupserver men det hamnar i RAM, och kommer antigen fylla ram och faila eller tempa i ram och backup
+# försvinner när man stänger ner.
+
+if [[ $(df | awk '/backupserver/ {print $6}') == "/mnt/backupserver" && "$DST2" == "backupserver" ]];
+ then
+   echo -e ""
+ else
+   echo -e "OBS!! OBS!! OBS!! OBS!!"
+   echo -e "Du vill backupa till en testrigg, men verkar inte som den har mountat rätt. Är backupservern igång? Eller är du inte kopplad på nätverket? "
+   echo -e "OBS!! OBS!! OBS!! OBS!!" ; exit
+ fi
+
+
+# Array of directories we know we want from users home directories
+
+backup_files=( 
+"${MNTDIR}/${SRC2}/Users/${USER}/Desktop"
+"${MNTDIR}/${SRC2}/Users/${USER}/Documents"
+"${MNTDIR}/${SRC2}/Users/${USER}/Pictures"
+"${MNTDIR}/${SRC2}/Users/${USER}/SkyDrive"
+"${MNTDIR}/${SRC2}/Users/${USER}/Dropbox"
+"${MNTDIR}/${SRC2}/Users/${USER}/Videos"
+"${MNTDIR}/${SRC2}/Users/${USER}/OneDrive"
+"${MNTDIR}/${SRC2}/Users/${USER}/Google Drive"
+"${MNTDIR}/${SRC2}/Users/${USER}/Music"
+"${MNTDIR}/${SRC2}/Users/${USER}/Favorites"
+"${MNTDIR}/${SRC2}/Users/${USER}/Downloads"
+"${MNTDIR}/${SRC2}/Users/${USER}/Saved Games"
+"${MNTDIR}/${SRC2}/Users/${USER}/Contacts"
+"${MNTDIR}/${SRC2}/SIE"
+"${MNTDIR}/${SRC2}/ProgramData/SPCS"
+"${MNTDIR}/${SRC2}/SPCSFiler"
+"${MNTDIR}/${SRC2}/Users/${USER}/AppData/Local/Microsoft/Windows Mail"
+"${MNTDIR}/${SRC2}/Users/${USER}/AppData/Local/Microsoft/Outlook"
+"${MNTDIR}/${SRC2}/Users/${USER}/AppData/Local/Microsoft/Windows Live Mail"
+"${MNTDIR}/${SRC2}/Users/${USER}/AppData/Roaming/Mozilla/Firefox"
+"${MNTDIR}/${SRC2}/Users/${USER}/AppData/Roaming/eM Client"
+"${MNTDIR}/${SRC2}/Users/${USER}/AppData/Roaming/Thunderbird" ) 
+
+target="${MNTDIR}/${DST2}/${NVN}/${USER}"
+mkdir -p -v "${target}"
+
+# If the Extra dir exists then skip the part of the temp dir. This is cause when you run script again for ex. another user
+# it will for some reason create the temp directory inside the Extra directory and copy everything again.
+target_2="${MNTDIR}/${DST2}/${NVN}/temp"
+mkdir -p -v "${target_2}"
+
+echo -e "Backupar standard sakerna som Dokument, skrivbord, favoriter o.sv från ${USER} till ${target}\nSPCS kataloger om dom finns kopieras dessa också."
+echo "Kopierar även chrome profile, firefox profil samt thunderbird profiler för bookmarks och mail"
+
+# Anävnder en for loop istället för foreach då jag fick samma problem med "spaces" annars. '#' innan variabelnamnet gör så du får tillbaka
+# antalet 'entries' i arrayen och sedan körs rsync-kommandot för varje 'entry'.
+
+for ((i =0; i < ${#backup_files[@]}; i++))
+do
+  rsync -avuS --progress --numeric-ids --chmod=u=rwX --no-owner --no-perms --no-group -S --numeric-ids "${backup_files[$i]}" "${target}"
+done
+
+# Chrome Bookmarks file
+rsync -avuS --progress --numeric-ids "${MNTDIR}/${SRC2}/Users/${USER}/AppData/Local/Google/Chrome/User Data/Default/Bookmarks" "${target}/Chrome_bookmarks/"
+
+# Edge browser Bookmarks file
+rsync -avuS --progress --numeric-ids "${MNTDIR}/${SRC2}/Users/${USER}/AppData/Local/Microsoft/Edge/User Data/Default/Bookmarks" "${target}/Edge_bookmarks/"
+
+
+# Exclude list for directories and files under C:\ Did not get this to work inside the array. So this works for now. Using an exclude file where everything is listed
+
+# for some reason if you run the script a 2nd time it will create a target_2 directory inside the Extra dir
+# use this to get rid of that, cause it's waste of space and the same stuff that was allready copied
+if [[ ! -d "${MNTDIR}/${DST2}/${NVN}/Extra" ]]; then
+  rsync -avuS --progress --numeric-ids --chmod=u=rwX --no-owner --no-perms --no-group -S --numeric-ids --exclude-from='/root/exclude.txt' "${MNTDIR}/${SRC2}" "${target_2}"
+  mv "${target_2}/${SRC2}" "${MNTDIR}/${DST2}/${NVN}/Extra"
+fi
+
+rm -rf "${target_2}"
+
+#
+# Working Exclude for random directories in the users homefolder that isn't covered by the standard stuff copied above using the same exclude file as above.
+#
+
+rsync -avuS --exclude-from='/root/exclude.txt' --progress --no-owner --no-perms --no-group --numeric-ids "${MNTDIR}/${SRC2}/Users/${USER}/" "${target}"
+
+
+
+echo "Backup klar"
+
+exit $?

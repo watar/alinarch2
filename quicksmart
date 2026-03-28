@@ -1,0 +1,75 @@
+#!/bin/bash
+
+#######################################
+# Quick S.M.A.R.T script by Pharanim. #
+#######################################
+# Creation Date: 2014-05-04           #
+# Last  Updated: 2014-05-05           #
+#######################################
+# Dependencies: smartctl              #
+#######################################
+
+## Color Variables
+RED='\e[0;31m'
+BLUE='\e[0;34m'
+GREEN='\e[0;32m'
+CYAN='\e[0;36m'
+PURPLE='\e[0;35m'
+ORANGE='\e[0;33m'
+WHITE='\e[1;37m'
+NC='\e[0m'
+
+## List disks
+lsblk --nodeps
+
+
+## Asking for device name to check for S.M.A.R.T
+echo "Enter the device name to check: (e.g sda)"
+read TestDevice
+
+echo -e "${WHITE}Checking /dev/$TestDevice for S.M.A.R.T errors...${NC}"
+
+## Checking Raw_Read_Error_Rate
+echo -e "${PURPLE}Raw Read Error Rate:${NC}"
+smartctl -A /dev/$TestDevice | grep Raw_Read_Error_Rate | awk '{print $10}'
+
+## Checking Reallocated_Sector_Ct
+echo -e "${CYAN}Reallocated Sector Count:${NC}"
+smartctl -A /dev/$TestDevice | grep Reallocated_Sector_Ct | awk '{print $10}'
+
+## Checking Seek_Error_Rate
+echo -e "${RED}Seek Error Rate:${NC}"
+smartctl -A /dev/$TestDevice | grep Seek_Error_Rate | awk '{print $10}'
+
+## Checking Spin-Up Retry Count
+echo -e "${PURPLE}Spin-Up Retry Count:${NC}"
+smartctl -A /dev/$TestDevice | grep Spin_Retry_Count | awk '{print $10}'
+
+## Checking Reallocated_Event_Count
+echo -e "${ORANGE}Reallocated Event Count:${NC}"
+smartctl -A /dev/$TestDevice | egrep ^196 | awk '{print $10}'
+
+## Checking Current_Pending_Sector
+echo -e "${GREEN}Current Pending Sector:${NC}"
+smartctl -A /dev/$TestDevice | egrep ^197 | awk '{print $10}'
+
+## Checking Offline_Uncorrectable
+echo -e "${PURPLE}Offline Uncorrectable:${NC}"
+smartctl -A /dev/$TestDevice | egrep ^198 | awk '{print $10}'
+
+## Checking UDMA_CRC_Error_Count
+echo -e "${ORANGE}CRC Error Count:${NC}"
+smartctl -A /dev/$TestDevice | egrep ^199 | awk '{print $10}'
+
+## Checking Temps
+echo -e "${RED}Temperature:${NC}"
+smartctl -A /dev/$TestDevice | egrep ^194 | awk '{print $10}'
+
+echo -e "${WHITE}================================${NC}"
+
+## overall-health self-assessment test result
+echo -e "${CYAN}"
+smartctl -H /dev/$TestDevice | grep test\ result
+echo -e "${NC}"
+echo -e "${WHITE}================================${NC}"
+

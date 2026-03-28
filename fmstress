@@ -1,0 +1,66 @@
+#!/bin/bash
+
+clear
+echo "=================================================="
+echo " STARTAR FURMARK 2 STRESSTEST (10 MINUTER)"
+echo "=================================================="
+
+# Fråga efter ordernummer, precis som i winver
+read -r -p "Ange ordernummer för att spara en rapport (eller tryck Enter för att hoppa över): " ORDERNUMBER
+
+if [[ -n "$ORDERNUMBER" ]]; then
+    # -- SPARA RAPPORT-LÄGE --
+    REPORT_DIR="/mnt/backupserver/värdering"
+    REPORT="$REPORT_DIR/${ORDERNUMBER} - FM2 Report.log"
+
+    # Kontrollera att servern är mountad OCH att undermappen finns
+    if [ ! -d "$REPORT_DIR" ]; then
+        echo "❌ VARNING: Mappen $REPORT_DIR hittades inte!"
+        echo "Är servern mountad? (Skapa mappen 'värdering' om den saknas på servern)."
+        echo "Avbryter testet."
+        sleep 5
+        exit 1
+    fi
+
+    echo -e "\n Luta dig tillbaka, fönstret stängs automatiskt när testet är klart."
+    echo "=================================================="
+
+    # Skriv startinfo till rapporten på servern
+    echo "==================================================" > "$REPORT"
+    echo " GPU STRESS TEST REPORT (FURMARK 2 - VULKAN)" >> "$REPORT"
+    echo " Ordernummer: $ORDERNUMBER" >> "$REPORT"
+    echo " Date: $(date)" >> "$REPORT"
+    echo "==================================================" >> "$REPORT"
+
+    echo -e "\n[ SYSTEM GPU ]" >> "$REPORT"
+    lspci | grep -i -E "vga|3d" >> "$REPORT"
+
+    echo -e "\n[ TEST DETAILS ]" >> "$REPORT"
+    echo "Duration: 10 Minutes (600 seconds)" >> "$REPORT"
+    echo "Resolution: 1920x1080" >> "$REPORT"
+    echo "API: Vulkan" >> "$REPORT"
+
+    echo -e "\n[ FURMARK 2 QUICK STATS & OUTPUT ]" >> "$REPORT"
+
+    # Kör FurMark och spara output i loggen via tee
+    timeout 605 /usr/local/bin/furmark2/furmark --demo furmark-vk --width 1920 --height 1080 --max-time 600000 2>&1 | tee -a "$REPORT"
+
+    echo -e "\n==================================================" >> "$REPORT"
+    echo " TEST COMPLETED AT: $(date)" >> "$REPORT"
+    echo "==================================================" >> "$REPORT"
+
+    echo -e "\n✅ Testet är klart! Rapporten har sparats på servern som:"
+    echo "$REPORT"
+
+else
+    # -- INGEN RAPPORT-LÄGE (Bara kör testet) --
+    echo -e "\n Luta dig tillbaka, fönstret stängs automatiskt när testet är klart."
+    echo "=================================================="
+    
+    # Kör FurMark normalt i 10 minuter
+    timeout 605 /usr/local/bin/furmark2/furmark --demo furmark-vk --width 1920 --height 1080 --max-time 600000
+
+    echo -e "\n✅ Testet är klart! Ingen rapport sparades."
+fi
+
+sleep 10

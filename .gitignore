@@ -1,0 +1,5 @@
+# Ignore specific files
+occt-bin
+
+# Ignore entire folders
+furmark2

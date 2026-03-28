@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+# Script for mounting Apple filesystems. HFS and the newer APFS. HFS+ can be forced read write but this is readonly.
+# APFS will mount exclusivly readonly, until the driver allows write
+# This will first try and mount the older hfsplus, and then try apfs-fuse for the newer filesystem.
+#
+
+
+lsblk
+
+read -r -p $'\x0aVilken disk ska mountas ' SRC1
+echo -e "\nVart ska den mountas?"
+
+select SRC2 in "disk1" "disk2" "disk3" "disk4"; do
+    case $SRC2 in
+	disk1 ) mount -t hfs /dev/${SRC1} /mnt/disk1; mount -t hfsplus /dev/${SRC1} /mnt/disk1; apfs-fuse -o allow_other /dev/${SRC1} /mnt/disk1; break
+          ;;
+	disk2 ) mount -t hfs /dev/${SRC1} /mnt/disk2; mount -t hfsplus /dev/${SRC1} /mnt/disk2; apfs-fuse -o allow_other /dev/${SRC1} /mnt/disk2; break
+          ;;
+	disk3 ) mount -t hfs /dev/${SRC1} /mnt/disk3; mount -t hfsplus /dev/${SRC1} /mnt/disk3; apfs-fuse -o allow_other /dev/${SRC1} /mnt/disk3; break
+          ;;
+	disk4 ) mount -t hfs /dev/${SRC1} /mnt/disk4; mount -t hfsplus /dev/${SRC1} /mnt/disk4; apfs-fuse -o allow_other /dev/${SRC1} /mnt/disk4; break
+          ;;
+    esac
+done

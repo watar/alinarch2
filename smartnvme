@@ -1,0 +1,11 @@
+#!/bin/bash
+
+#
+# Quick script to check smart-log on nvme drives
+#
+
+clear
+lsblk | awk '/nvme/'
+read -r -p $'\x0aVälj NVMe disk som ska checkas. OBS använd hela disken inte partitionen\n' NVME
+nvme smart-log /dev/${NVME}
+echo" "

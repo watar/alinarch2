@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Check for root privileges
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root (use sudo)."
+   exit 1
+fi
+
+echo "--- BitLocker Mount Tool ---"
+
+# 1. Select the source partition
+echo "Available partitions:"
+lsblk -o NAME,SIZE,TYPE,MOUNTPOINT | grep "part"
+read -p "Enter the partition to decrypt (e.g., /dev/sdb1): " SRC_PART
+
+if [ ! -b "$SRC_PART" ]; then
+    echo "Error: $SRC_PART is not a valid block device."
+    exit 1
+fi
+
+# 2. Select the mount point
+echo "Choose a mount destination:"
+options=("/mnt/disk1" "/mnt/disk2" "/mnt/disk3" "/mnt/disk4")
+select MNT_DEST in "${options[@]}"; do
+    if [ -n "$MNT_DEST" ]; then
+        echo "You selected $MNT_DEST"
+        break
+    else
+        echo "Invalid selection."
+    fi
+done
+
+# 3. Create temporary decryption directory
+DECRYPT_DIR="/tmp/dislocker-$(basename $SRC_PART)"
+mkdir -p "$DECRYPT_DIR"
+mkdir -p "$MNT_DEST"
+
+# 4. Decrypt and Mount
+echo "Step 1: Decrypting BitLocker volume..."
+dislocker -V "$SRC_PART" -- "$DECRYPT_DIR" -u
+
+if [ $? -eq 0 ]; then
+    echo "Step 2: Mounting filesystem to $MNT_DEST..."
+    mount -o loop "$DECRYPT_DIR/dislocker-file" "$MNT_DEST"
+    
+    if [ $? -eq 0 ]; then
+        echo "Success! Your files are available at $MNT_DEST"
+    else
+        echo "Failed to mount the decrypted file."
+    fi
+else
+    echo "Decryption failed. Check your password."
+fi
