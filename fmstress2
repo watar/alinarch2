@@ -1,0 +1,52 @@
+#!/bin/bash
+
+clear
+echo "=================================================="
+echo " --- GPU BURN-IN & STRESS TEST (FurMark 2) ---"
+echo "=================================================="
+
+# 1. Hämta ordernummer (Valfritt, tryck Enter för att skippa)
+read -r -p "Ange ordernummer för rapport (eller tryck Enter för att bara testa): " ORDER_NUM
+
+# 2. Skapa rapportfil om ordernummer angavs
+if [[ -n "$ORDER_NUM" ]]; then
+    # Kontrollera att servern är tillgänglig (kan anpassas till din exakta sökväg)
+    DEST="/mnt/backupserver/värdering/$ORDER_NUM"
+    mkdir -p "$DEST"
+    LOG_FILE="$DEST/$ORDER_NUM - FM2 Report.log"
+    
+    echo "==================================================" > "$LOG_FILE"
+    echo " FurMark 2 Testrapport - Order: $ORDER_NUM" >> "$LOG_FILE"
+    echo " Datum: $(date)" >> "$LOG_FILE"
+    echo "==================================================" >> "$LOG_FILE"
+    
+    echo -e "\n[ GPU Information ]" >> "$LOG_FILE"
+    lspci | grep -E "VGA|3D" >> "$LOG_FILE"
+    echo "--------------------------------------------------" >> "$LOG_FILE"
+    
+    echo -e "\n📝 Rapport kommer att sparas i: $LOG_FILE"
+else
+    # Skickar utskriften till ett svart hål om inget ordernummer anges
+    LOG_FILE="/dev/null"
+    echo -e "\n⚠️ Inget ordernummer angivet. Kör endast test utan att spara rapport."
+fi
+
+echo -e "\n🚀 Startar 10 minuters Vulkan-stresstest..."
+echo "Låt testet köra klart! Det stängs automatiskt och sparar resultatet efter exakt 10 minuter."
+echo "Tryck Enter för att starta."
+read -r
+
+# 3. Kör FurMark 2 i Benchmark-läge
+# --benchmark tvingar fram ett slutresultat
+# --max-time 600000 sätter en exakt gräns på 10 minuter
+# 2>&1 fångar upp både standardutskrifter och felmeddelanden, och 'tee -a' sparar det i loggen
+furmark --demo furmark-vk --benchmark --max-time 600000 2>&1 | tee -a "$LOG_FILE"
+
+if [[ -n "$ORDER_NUM" ]]; then
+    echo -e "\n=================================================="
+    echo "✅ Testet är klart!"
+    echo "✅ Resultatet har sparats på servern i: $LOG_FILE"
+    echo "=================================================="
+else
+    echo -e "\n✅ Testet är klart!"
+fi

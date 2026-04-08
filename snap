@@ -1,0 +1,45 @@
+#!/bin/bash
+
+## Color Variables
+GREEN='\e[1;32m'
+CYAN='\e[1;36m'
+WHITE='\e[1;37m'
+RED='\e[1;31m'
+NC='\e[0m'
+
+clear
+echo -e "${CYAN}==================================================${NC}"
+echo -e "${WHITE} 📸 SCREENSHOT TO SERVER${NC}"
+echo -e "${CYAN}==================================================${NC}"
+
+# Check if the server is mounted
+if ! mountpoint -q /mnt/backupserver; then
+    echo -e "${RED}❌ ERROR: Backup server is not mounted!${NC}"
+    exit 1
+fi
+
+REPORT_DIR="/mnt/backupserver/__reports"
+mkdir -p "$REPORT_DIR" 2>/dev/null
+
+read -r -p "Enter Order Number: " ORDERNUMBER
+
+if [[ -z "$ORDERNUMBER" ]]; then
+    echo "No Order Number entered. Aborting."
+    exit 1
+fi
+
+FILE_PATH="${REPORT_DIR}/${ORDERNUMBER}_Screenshot_$(date +%H%M%S).png"
+
+echo -e "\n${YELLOW}🖱️  Your mouse is now a crosshair!${NC}"
+echo -e "Click on the OCCT window (or drag a box) to take the screenshot..."
+
+# The -s flag lets the user select a specific window or draw a rectangle
+# The -d 1 adds a tiny 1-second delay so the terminal can get out of the way if needed
+scrot -s -d 1 "$FILE_PATH"
+
+if [ -f "$FILE_PATH" ]; then
+    echo -e "\n${GREEN}✅ Screenshot saved successfully!${NC}"
+    echo "📍 Saved to: $FILE_PATH"
+else
+    echo -e "\n${RED}❌ Error: Screenshot failed or was cancelled.${NC}"
+fi

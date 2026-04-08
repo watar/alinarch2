@@ -1,53 +1,89 @@
 #!/bin/bash
 
-# Check for root privileges
-if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root (use sudo)."
-   exit 1
+clear
+echo "=================================================="
+echo " --- BitLocker Mount Tool ---"
+echo "=================================================="
+
+# Visa tillgängliga partitioner
+echo "Available partitions:"
+lsblk -o NAME,SIZE,TYPE,FSTYPE | grep -i "part"
+
+echo ""
+# Uppdaterad prompt: Ber bara om sda3
+read -r -p "Enter the partition to decrypt (e.g., sda3): " SRC_INPUT
+
+# Smart logik: Lägg till /dev/ automatiskt om det saknas
+if [[ "$SRC_INPUT" == /dev/* ]]; then
+    SRC_PART="$SRC_INPUT"
+else
+    SRC_PART="/dev/$SRC_INPUT"
 fi
 
-echo "--- BitLocker Mount Tool ---"
-
-# 1. Select the source partition
-echo "Available partitions:"
-lsblk -o NAME,SIZE,TYPE,MOUNTPOINT | grep "part"
-read -p "Enter the partition to decrypt (e.g., /dev/sdb1): " SRC_PART
-
+# Kontrollera att partitionen finns
 if [ ! -b "$SRC_PART" ]; then
-    echo "Error: $SRC_PART is not a valid block device."
+    echo "❌ Error: Partition $SRC_PART does not exist!"
     exit 1
 fi
 
-# 2. Select the mount point
+echo ""
 echo "Choose a mount destination:"
-options=("/mnt/disk1" "/mnt/disk2" "/mnt/disk3" "/mnt/disk4")
-select MNT_DEST in "${options[@]}"; do
-    if [ -n "$MNT_DEST" ]; then
-        echo "You selected $MNT_DEST"
-        break
-    else
-        echo "Invalid selection."
-    fi
-done
+echo "1) /mnt/disk1"
+echo "2) /mnt/disk2"
+echo "3) /mnt/disk3"
+echo "4) /mnt/disk4"
+read -r -p "#? " DEST_CHOICE
 
-# 3. Create temporary decryption directory
-DECRYPT_DIR="/tmp/dislocker-$(basename $SRC_PART)"
+case $DEST_CHOICE in
+    1) DEST_MOUNT="/mnt/disk1" ;;
+    2) DEST_MOUNT="/mnt/disk2" ;;
+    3) DEST_MOUNT="/mnt/disk3" ;;
+    4) DEST_MOUNT="/mnt/disk4" ;;
+    *) echo "❌ Invalid choice."; exit 1 ;;
+esac
+
+echo "You selected $DEST_MOUNT"
+
+# Den dolda mappen där dislocker skapar sin virtuella fil
+DECRYPT_DIR="/mnt/.dislocker"
+
+# Skapa mapparna om de inte finns
 mkdir -p "$DECRYPT_DIR"
-mkdir -p "$MNT_DEST"
+mkdir -p "$DEST_MOUNT"
 
-# 4. Decrypt and Mount
-echo "Step 1: Decrypting BitLocker volume..."
-dislocker -V "$SRC_PART" -- "$DECRYPT_DIR" -u
+# Avmontera den dolda mappen om ett tidigare test fastnade
+if mountpoint -q "$DECRYPT_DIR"; then
+    umount "$DECRYPT_DIR"
+fi
+
+echo ""
+# Ber direkt om Recovery Key (48 siffror)
+# Tog bort -s flaggan så att nyckeln syns i klartext när man skriver/klistrar in
+read -r -p "Ange BitLocker Recovery Key (48 siffror): " BL_KEY
+echo ""
+
+echo ""
+echo "Step 1: Decrypting BitLocker volume ($SRC_PART)..."
+
+# Dislocker använder nu alltid -p (för Recovery Keys)
+dislocker -V "$SRC_PART" -p"$BL_KEY" -- "$DECRYPT_DIR"
+
+# Kontrollera om dekrypteringen lyckades genom att leta efter filen dislocker skapar
+if [ ! -f "$DECRYPT_DIR/dislocker-file" ]; then
+    echo "❌ Decryption failed. Check your recovery key."
+    exit 1
+fi
+
+echo "Step 2: Mounting the decrypted file system..."
+# Montera den virtuella ntfs-filen till den synliga mappen
+mount -o loop "$DECRYPT_DIR/dislocker-file" "$DEST_MOUNT"
 
 if [ $? -eq 0 ]; then
-    echo "Step 2: Mounting filesystem to $MNT_DEST..."
-    mount -o loop "$DECRYPT_DIR/dislocker-file" "$MNT_DEST"
-    
-    if [ $? -eq 0 ]; then
-        echo "Success! Your files are available at $MNT_DEST"
-    else
-        echo "Failed to mount the decrypted file."
-    fi
+    echo -e "\n=================================================="
+    echo "✅ Success! The drive is decrypted and mounted at $DEST_MOUNT"
+    echo "You can now browse the files or run your diskbackup script."
+    echo "=================================================="
 else
-    echo "Decryption failed. Check your password."
+    echo "❌ Failed to mount the decrypted file system."
+    exit 1
 fi

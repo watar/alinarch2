@@ -1,0 +1,27 @@
+#!/bin/bash
+
+#
+# Simpel script for listing available drives and mount chosen one.
+# Will also run the ntfsfix before mount, and the option -o remove_hiberfile to rid ourselfs of Windows "we can boot fast! promise!" hybrid hibernation bullshit.
+#
+
+clear
+
+lsblk
+
+read -r -p $'\x0aVilken disk ska mountas? ' SRC1
+echo -e '\n'
+echo "Vart ska den mountas?"
+
+select SRC2 in "disk1" "disk2" "disk3" "disk4"; do
+    case $SRC2 in
+	disk1 ) ntfsfix /dev/$SRC1 ; mount /dev/${SRC1} /mnt/disk1 -o remove_hiberfile; break
+          ;;
+	disk2 ) ntfsfix /dev/$SRC1 ; mount /dev/${SRC1} /mnt/disk2 -o remove_hiberfile; break
+          ;;
+	disk3 ) ntfsfix /dev/$SRC1 ; mount /dev/${SRC1} /mnt/disk3 -o remove_hiberfile; break
+          ;;
+	disk4 ) ntfsfix /dev/$SRC1 ; mount /dev/${SRC1} /mnt/disk4 -o remove_hiberfile; break
+          ;;
+    esac
+done

@@ -1,117 +1,94 @@
 #!/bin/bash  
 
-# Script för att lista info som behövs vid värdering av beggad maskin.
-# smart, minne, cpu, nätverkskort, wifikort, gpu o.sv
-
-LOGDIR="/mnt/backupserver/värdering"
+# Set the log directory to the centralized reports folder
+LOGDIR="/mnt/backupserver/__reports"
 
 clear
 
-# SÄKERHETSKONTROLL: Kolla om servern faktiskt är monterad innan vi fortsätter!
+# SECURITY CHECK: Make sure the server is actually mounted before continuing!
 if ! mountpoint -q /mnt/backupserver; then
-    echo "❌ FEL: Backupservern är inte monterad i /mnt/backupserver."
-    echo "Kontrollera nätverkskabeln eller kör mount-scriptet manuellt."
+    echo "❌ ERROR: The backup server is not mounted at /mnt/backupserver."
+    echo "Check the network cable or run the mount script manually."
     exit 1
 fi
 
-# Skapa mappen ifall den inte redan existerar på servern
 mkdir -p "$LOGDIR"
 
-echo "================================"
-echo " Hårdvarurapport för värdering."
-echo "================================"
+echo "=================================================="
+echo " 🖥️  HARDWARE VALUATION REPORT"
+echo "=================================================="
 
-# Fråga efter service nr
-read -r -p $'\x0aAnge ServiceNR?\n> ' nvn
-LOGFILE="$LOGDIR/$nvn.log"
+read -r -p $'\x0aEnter Order Number (ServiceNR):\n> ' nvn
+LOGFILE="$LOGDIR/${nvn}_Hardware.log"
 
-echo -e "\nGenererar rapport för $nvn. Vänligen vänta..."
+# Allow user to quit
+if [[ -z "$nvn" ]]; then exit 0; fi
 
-# =========================================================================
-# KODBLOCK: Allt inom { } skickas automatiskt till loggfilen!
-# =========================================================================
+echo -e "\nGenerating report for $nvn. Please wait..."
+
 {
     echo "================================================================================="
-    echo " VÄRDERINGSRAPPORT - SERVICE NR: $nvn"
+    echo " VALUATION REPORT - ORDER NUMBER: $nvn"
     echo "================================================================================="
     
-    echo -e "\n[ SERIENR / MODELL ]"
+    echo -e "\n[ SERIAL NO / MODEL ]"
     dmidecode -t system | grep -i -E 'system inf|manuf|product name|version|serial|family'
     
-    echo -e "\n[ HÅRDDISKAR ]"
-    lsblk --nodeps -o name,model,size | grep -i -v -E 'loop|datatravel'
+    echo -e "\n[ HARD DRIVES ]"
+    lsblk --nodeps -o name,model,size,tran | grep -i -v -E 'loop|usb'
     
-    echo -e "\n[ BATTERI ]"
-    acpi -i -b | grep -i design
+    echo -e "\n[ BATTERY ]"
+    acpi -i -b 2>/dev/null | grep -i design
     
     echo -e "\n[ CPU ]"
     lscpu | grep -i -E 'archit|model name|thread|per socket'
     
-    echo -e "\n[ MODERKORTSINFO ]"
+    echo -e "\n[ MOTHERBOARD INFO ]"
     cat /sys/devices/virtual/dmi/id/board_{vendor,name,version} 2>/dev/null
     
-    echo -e "\n[ MINNESMÄNGD ]"
-    echo "Total: $(free -h | grep -i mem: | awk '{print $2}')"
+    echo -e "\n[ TOTAL MEMORY ]"
+    echo "Total: $(free -h | awk '/^Mem:/ {print $2}')"
     
-    echo -e "\n[ LJUDKORT ]"
+    echo -e "\n[ SOUND CARD ]"
     lspci | grep -i audio
     
     echo -e "\n[ GPU ]"
     lspci | grep -i vga
     
-    echo -e "\n[ UPPLÖSNING ]"
-    xrandr | grep -i -E 'dvi|hdmi|vga|dp' | awk '{print $1,$2,$3,$4}'
+    echo -e "\n[ RESOLUTION ]"
+    xrandr 2>/dev/null | grep -i -E 'dvi|hdmi|vga|dp' | awk '{print $1,$2,$3,$4}'
     
-    echo -e "\n[ NÄTVERK (ETHERNET & WIFI) ]"
+    echo -e "\n[ NETWORK (ETHERNET & WIFI) ]"
     lspci | grep -i -E 'ether|network'
 
 } > "$LOGFILE"
 
-
-# =========================================================================
-# SMART-KONTROLL (Kräver input, ligger utanför automatskrivningen)
-# =========================================================================
 echo " "
-echo "================================"
-echo " Hårddisk-kontroll"
-echo "================================"
+echo "=================================================="
+echo " 💾 Found Storage Drives & SMART Analysis"
+echo "=================================================="
 
-# 1. Byt ut den tråkiga standard-prompten ("#?") mot en tydlig fråga
-PS3=$'\nVilken typ av disk? (Välj 1-3): '
+# List physical internal drives (filtering out USB and Loop devices)
+lsblk -d -e 7 -o NAME,SIZE,MODEL,TRAN | grep -i -v -E 'usb'
 
-select TYPE in "s-ata" "nvme" "avsluta"; do
-  case "$TYPE" in
-    s-ata) 
-      echo ""
-      lsblk
-      read -r -p $'\nAnge disk? (t.ex. sda. OBS hela disken, inte bara partition): ' SMRT
-      
-      echo -e "\n[ SMART (S-ATA: $SMRT) ]" >> "$LOGFILE"
-      smartctl /dev/"$SMRT" -a | grep -i -E 'raw_re|13|187|196|197|198|201|231|233|241|242' | awk '{print $1,$2,$10}' >> "$LOGFILE"
-      
-      REPLY=
-      ;;
-    nvme)
-      echo ""
-      lsblk 
-      read -r -p $'\nAnge disk? (t.ex. nvme0n1.OBS hela disken, inte bara partition ): ' SMRT
-      
-      echo -e "\n[ SMART (NVME: $SMRT) ]" >> "$LOGFILE"
-      nvme smart-log /dev/"$SMRT" | grep -i -E 'critical_warning|temp|available_spare|on_hours|shutdowns|media_errors' >> "$LOGFILE"
-      
-      # 2. Detta tvingar scriptet att rita upp menyn på nytt!
-      REPLY=
-      ;;
-    avsluta) 
-      break
-      ;;
-    *)
-      # Fångar upp om man råkar skriva fel siffra
-      echo "Ogiltigt val, försök igen."
-      REPLY=
-      ;;
-  esac
+echo -e "\nFetching SMART data for all storage devices and saving to the log..."
+echo -e "\n[ SMART DATA ]" >> "$LOGFILE"
+
+# Loop through drives, skipping USBs so we don't SMART-check the LiveCD
+for DISK in $(lsblk -d -n -e 7 -o NAME,TRAN | awk '$2 != "usb" {print $1}'); do
+    
+    if [[ "$DISK" == nvme* ]]; then
+        echo "Analyzing NVMe drive: $DISK..."
+        echo -e "\n--- SMART (NVME: $DISK) ---" >> "$LOGFILE"
+        nvme smart-log "/dev/$DISK" | grep -i -E 'critical_warning|temp|available_spare|on_hours|shutdowns|media_errors' >> "$LOGFILE"
+        
+    elif [[ "$DISK" == sd* || "$DISK" == hd* ]]; then
+        echo "Analyzing SATA drive: $DISK..."
+        echo -e "\n--- SMART (S-ATA: $DISK) ---" >> "$LOGFILE"
+        smartctl -a "/dev/$DISK" | grep -i -E 'raw_re|13|187|196|197|198|201|231|233|241|242' | awk '{print $1,$2,$10}' >> "$LOGFILE"
+    fi
 done
 
-echo -e "\n✅ Rapport skapad. Finns på servern som $nvn.log. Kom ihåg att stresstesta datorn (OCCT, FurMark2, Memtest)."
-echo -e "\nKom ihåg att stresstesta datorn (OCCT, FurMark2, Memtest)."
+echo -e "\n✅ Report created! It is saved on the server as:"
+echo "${nvn}_Hardware.log"
+echo -e "Remember to stress test the computer (OCCT, FurMark2, Memtest)."

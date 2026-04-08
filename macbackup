@@ -1,0 +1,114 @@
+#!/bin/bash
+
+clear
+echo "=================================================="
+echo " 🍏 MACOS DISK BACKUP UTILITY"
+echo "=================================================="
+
+# 1. Hämta ordernummer eller sökväg
+DEST_INPUT="$1"
+if [[ -z "$DEST_INPUT" ]]; then
+    read -r -p "Ange ordernummer (eller fullständig sökväg): " DEST_INPUT
+    if [[ -z "$DEST_INPUT" ]]; then
+        echo -e "\n❌ Inget mål angivet. Avbryter."
+        exit 1
+    fi
+fi
+
+# 2. Skapa destinationen
+if [[ "$DEST_INPUT" == /* ]]; then
+    DEST="$DEST_INPUT"
+else
+    DEST="/mnt/backupserver/$DEST_INPUT"
+fi
+
+echo -e "\nSkapar backup-mapp på servern..."
+mkdir -p -v "$DEST"
+
+# Kolla ledigt utrymme på servern
+echo -e "\nDiskutrymme på destinationen:"
+df -h "$DEST"
+
+# 3. Säkerhetskontroll för källan (Körs från aktuell mapp)
+SOURCE_DIR=$(pwd)
+echo -e "\n[ KONTROLL AV SÖKVÄGAR ]"
+echo "Från (Källa): $SOURCE_DIR"
+echo "Till (Server): $DEST"
+
+if [[ "$SOURCE_DIR" == "/" ]] || [[ "$SOURCE_DIR" == "/root" ]]; then
+    echo -e "\n❌ VARNING: Du befinner dig i LiveCD:ns rotmapp!"
+    echo "Du måste navigera till den monterade APFS-disken (t.ex. cd /mnt/disk1) innan du kör backupen."
+    exit 1
+fi
+
+echo -e "\nTryck Enter för att starta backupen, eller Ctrl+C för att avbryta."
+read -r
+
+# 4. Lista med exkluderade filer och mappar för macOS
+EXCLUDES=(
+    # --- MACOS SYSTEMFILER & INDEXERING ---
+    ".Spotlight-V100"
+    ".fseventsd"
+    ".DocumentRevisions-V100"
+    ".vol"
+    ".PKInstallSandboxManager-SystemSoftware"
+    "cores"
+    "private/var/vm"      # Innehåller gigantiska RAM- och Sleep-filer
+    "private/var/folders" # Systemets temporära mappar
+
+    # --- PAPPERKORGAR ---
+    ".Trashes"
+    ".Trash"
+    "Users/*/.Trash"
+
+    # --- MACOS OS-MAPP OCH APPLIKATIONER ---
+    # Vi exkluderar dessa för att bara rädda användardata och spara serverutrymme
+    "Applications"
+    "System"
+    "bin"
+    "sbin"
+    "usr"
+    "Network"
+
+    # --- SYSTEM-CACHAR OCH LOGGAR ---
+    "Library/Caches"
+    "Library/Logs"
+
+    # --- ANVÄNDARNAS CACHAR & TILLFÄLLIGA FILER ---
+    "Users/*/Library/Caches"
+    "Users/*/Library/Logs"
+    "Users/*/Library/Containers/*/Data/Library/Caches"
+    "Users/*/Library/Saved Application State"
+    "Users/*/Library/Developer/Xcode/DerivedData" # Kan ta upp tiotals GB om kunden kodar
+
+    # --- WEBBLÄSARCACHAR ---
+    "Users/*/Library/Caches/Google/Chrome"
+    "Users/*/Library/Caches/com.apple.Safari"
+    "Users/*/Library/Caches/Mozilla/Firefox"
+
+    # --- ONÖDIGA METADATA-FILER ---
+    ".DS_Store"
+    ".AppleDouble"
+    ".LSOverride"
+    "._*"
+)
+
+# Bygg rsync-flaggorna dynamiskt från arrayen ovan
+RSYNC_EXCLUDES=()
+for e in "${EXCLUDES[@]}"; do
+    RSYNC_EXCLUDES+=("--exclude=$e")
+done
+
+# 5. Kör den optimerade rsync-kopieringen
+echo -e "\n🚀 Startar filkopiering av macOS-data (Detta kan ta lite tid)...\n"
+
+# Använder samma säkra flaggor som Windows-scriptet
+rsync -avuS --progress --numeric-ids \
+      --no-owner --no-group --no-perms --chmod=u=rwX \
+      "${RSYNC_EXCLUDES[@]}" \
+      . "$DEST"
+
+echo -e "\n=================================================="
+echo "✅ Kopiering klar och rättigheter justerade."
+echo "✅ macOS Backup för '$DEST_INPUT' är färdig."
+echo "=================================================="

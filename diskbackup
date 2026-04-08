@@ -37,7 +37,7 @@ echo "Till (Server): $DEST"
 
 if [[ "$SOURCE_DIR" == "/" ]] || [[ "$SOURCE_DIR" == "/root" ]]; then
     echo -e "\n❌ VARNING: Du befinner dig i LiveCD:ns rotmapp!"
-    echo "Du måste navigera till kundens monterade disk (t.ex. cd /mnt/windows) innan du kör backupen."
+    echo "Du måste navigera till kundens monterade disk (t.ex. cd /mnt/disk1) innan du kör backupen."
     exit 1
 fi
 
@@ -99,36 +99,37 @@ EXCLUDES=(
     "[pP]erf[lL]ogs"
 
     # --- ANVÄNDARNAS TILLFÄLLIGA FILER ---
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/[tT]emp"
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/[dD]ownloaded [iI]nstallations"
+    "*[aA]pp[dD]ata/[lL]ocal/[tT]emp"
+    "*[aA]pp[dD]ata/[lL]ocal/[dD]ownloaded [iI]nstallations"
     "[tT]emporary [iI]nternet [fF]iles"
 
-    # --- WEBBLÄSARE OCH APP-CACHAR ---
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/User Data/*/[cC]ache*"
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/User Data/*/[cC]ode [cC]ache"
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/User Data/*/[cC]ache*"
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/User Data/*/[cC]ode [cC]ache"
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Mozilla/[fF]irefox/[pP]rofiles/*/[cC]ache*"
-    "*[cC]ache[sS]torage"
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/User Data/*/[eE]xtensions"
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Spotify/[sS]torage"
-    "[uU]sers/*/[aA]pp[dD]ata/[rR]oaming/discord/[cC]ache"
+    # --- WEBBLÄSARE OCH APP-CACHAR (UPPDATERAD MED DJUPSÖKNING) ---
+    "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/*[cC]ache*"
+    "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/CacheStorage"
+    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/*[cC]ache*"
+    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/CacheStorage"
+    "*[aA]pp[dD]ata/[lL]ocal/Mozilla/[fF]irefox/**/*[cC]ache*"
+    "*[aA]pp[dD]ata/[lL]ocal/Spotify/[sS]torage"
+    "*[aA]pp[dD]ata/[rR]oaming/discord/[cC]ache"
 
     # --- MICROSOFT STORE & UWP CACHAR ---
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Packages/*/[lL]ocal[cC]ache"
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Packages/*/[aA][cC]"
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Packages/*/[tT]emp[sS]tate"
+    "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[lL]ocal[cC]ache"
+    "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[aA][cC]"
+    "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[tT]emp[sS]tate"
 
     # --- INBYGGDA MICROSOFT CACHAR & TEAMS ---
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[wW]eb[cC]ache"
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[iI]Net[cC]ache"
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[eE]xplorer/thumbcache_*.db"
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[cC]ache"
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[aA]pp[cC]ache"
+    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[wW]eb[cC]ache"
+    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[iI]Net[cC]ache"
+    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[eE]xplorer/thumbcache_*.db"
+    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[cC]ache"
+    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[aA]pp[cC]ache"
 
     # --- BLOATWARE (RADERA HELA MAPPEN) ---
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Packages/*[cC]andy[cC]rush*"
-    "[uU]sers/*/[aA]pp[dD]ata/[lL]ocal/Packages/*king.com*"
+    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[cC]andy[cC]rush*"
+    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[kK]ing.com*"
+    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[bB]ubble[wW]itch*"
+    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[aA]ngry[bB]irds*"
+    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[tT]ik[tT]ok*"
 )
 
 # Bygg rsync-flaggorna dynamiskt från arrayen ovan

@@ -1,123 +1,149 @@
 #!/bin/bash
 
-# Skript för att läsa Windows-version och Produktnyckel offline
+# Script to read Windows version and Product Key offline
+
+## Color Variables
+RED='\e[1;31m'
+GREEN='\e[1;32m'
+CYAN='\e[1;36m'
+WHITE='\e[1;37m'
+YELLOW='\e[1;33m'
+NC='\e[0m'
 
 clear
-echo -e "--- WINDOWS INFO & NYCKEL-EXTRAKTOR ---"
+echo -e "${CYAN}==================================================${NC}"
+echo -e "${WHITE} 🔑 WINDOWS INFO & KEY EXTRACTOR${NC}"
+echo -e "${CYAN}==================================================${NC}"
 
-lsblk
-read -r -p $'\nVilken partition är kundens WINDOWS-partition? (t.ex. sda3 eller nvme0n1p3): ' SRC1
+# Shows partitions, filtering out LiveCD's own drives
+lsblk -o NAME,FSTYPE,SIZE,MOUNTPOINT,MODEL -e 7 | grep -i -v -E "squashfs|iso9660|loop"
+echo ""
 
-# Säkerhetskontroll för BitLocker
-if blkid /dev/$SRC1 | grep -q "BitLocker"; then
-    echo -e "\n❌ VARNING: Disken är BitLocker-krypterad!"
-    echo "Du måste låsa upp den med 'dislocker' manuellt innan du kan läsa filer."
+read -r -p "Which partition is the customer's WINDOWS partition? (e.g. sda3 or nvme0n1p3): " SRC1_INPUT
+
+# Allow user to quit
+if [[ -z "$SRC1_INPUT" ]]; then exit 0; fi
+
+# Add /dev/ automatically if missing
+SRC1_INPUT=${SRC1_INPUT#/dev/}
+TARGET="/dev/$SRC1_INPUT"
+
+# Security check that the partition exists
+if [ ! -b "$TARGET" ]; then
+    echo -e "${RED}❌ ERROR: Partition $TARGET not found.${NC}"
     exit 1
 fi
 
-# Skapa en temporär read-only mapp
+# Security check for BitLocker
+if blkid "$TARGET" | grep -q "BitLocker"; then
+    echo -e "\n${RED}❌ WARNING: The drive is BitLocker encrypted!${NC}"
+    echo "You must run the 'bitlocker' script to unlock it before you can read files."
+    exit 1
+fi
+
+# Create a temporary read-only folder
 MNT_PATH="/mnt/win_temp"
 mkdir -p "$MNT_PATH"
 
-echo -e "\nMonterar disken (Read-Only)..."
-if ! mount -t ntfs-3g -o ro /dev/${SRC1} "${MNT_PATH}"; then
-    echo "❌ Kunde inte mounta disken. Avbryter."
+echo -e "\n${WHITE}Mounting $TARGET (Read-Only)...${NC}"
+if ! mount -t ntfs-3g -o ro "$TARGET" "${MNT_PATH}"; then
+    echo -e "${RED}❌ Could not mount the partition. Aborting.${NC}"
     exit 1
 fi
 
-# Hitta SOFTWARE-filen oavsett om mapparna har stora eller små bokstäver
+# Find the SOFTWARE file regardless of folder capitalization
 SOFT_PATH=$(find "${MNT_PATH}" -maxdepth 4 -ipath "*/windows/system32/config/software" | head -n 1)
 
 if [[ -z "$SOFT_PATH" ]]; then
-    echo "❌ Hittade ingen SOFTWARE-fil. Är du säker på att detta är Windows-partitionen?"
+    echo -e "${RED}❌ No SOFTWARE file found. Are you sure this is the Windows partition?${NC}"
     umount "${MNT_PATH}"
     exit 1
 fi
 
-echo -e "✅ Hittade Windows Registry!\n"
-echo "---------------------------------------------------"
+echo -e "${GREEN}✅ Found Windows Registry!${NC}\n"
+echo -e "${CYAN}---------------------------------------------------${NC}"
 
-# Läs Windows Version
+# Read Windows Version
 PROD_NAME=$(hivexget "$SOFT_PATH" 'Microsoft\Windows NT\CurrentVersion' ProductName 2>/dev/null)
 DISP_VER=$(hivexget "$SOFT_PATH" 'Microsoft\Windows NT\CurrentVersion' DisplayVersion 2>/dev/null)
 BUILD=$(hivexget "$SOFT_PATH" 'Microsoft\Windows NT\CurrentVersion' CurrentBuild 2>/dev/null)
 
-echo -e "💻 WINDOWS VERSION (Hårddisk):"
+echo -e "${WHITE}💻 WINDOWS VERSION (Hard Drive):${NC}"
 if [[ -n "$PROD_NAME" ]]; then
     INFO_OS="OS: $PROD_NAME (Version: $DISP_VER, Build: $BUILD)"
-    echo "$INFO_OS"
+    echo -e "${GREEN}$INFO_OS${NC}"
 else
-    INFO_OS="Kunde inte läsa Windows-version."
-    echo "$INFO_OS"
+    INFO_OS="Could not read Windows version."
+    echo -e "${RED}$INFO_OS${NC}"
 fi
 
 echo ""
 
-# Läs Produktnyckel från Registry
+# Read Product Key from Registry
 WIN_KEY=$(hivexget "$SOFT_PATH" 'Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform' BackupProductKeyDefault 2>/dev/null)
 
-echo -e "🔑 PRODUKTNYCKEL (Från Hårddisken):"
+echo -e "${WHITE}🔑 PRODUCT KEY (From Hard Drive):${NC}"
 if [[ -n "$WIN_KEY" ]]; then
     INFO_KEY="$WIN_KEY"
-    echo "$INFO_KEY"
+    echo -e "${GREEN}$INFO_KEY${NC}"
 else
-    INFO_KEY="Ingen modern nyckel hittades i mjukvaran (Gammalt OS eller digital licens)."
-    echo "$INFO_KEY"
+    INFO_KEY="No modern key found in software (Old OS or digital license)."
+    echo -e "${YELLOW}$INFO_KEY${NC}"
 fi
 
-echo "---------------------------------------------------"
+echo -e "${CYAN}---------------------------------------------------${NC}"
 
-# Kolla moderkortets inbyggda BIOS/UEFI-nyckel (OEM)
-echo -e "\n🔑 OEM-NYCKEL (Inbyggd i denna dators moderkort):"
+# Check motherboard's built-in BIOS/UEFI key (OEM)
+echo -e "\n${WHITE}🔑 OEM KEY (Built into this computer's motherboard):${NC}"
 if [ -f /sys/firmware/acpi/tables/MSDM ]; then
     OEM_KEY=$(cat /sys/firmware/acpi/tables/MSDM | strings | tail -n 1)
-    echo "$OEM_KEY"
+    echo -e "${GREEN}$OEM_KEY${NC}"
 else
-    OEM_KEY="Ingen inbyggd nyckel i moderkortet."
-    echo "$OEM_KEY"
+    OEM_KEY="No built-in key in the motherboard."
+    echo -e "${YELLOW}$OEM_KEY${NC}"
 fi
 
-echo -e "\nAvmonterar disken..."
+echo -e "\n${WHITE}Unmounting the drive...${NC}"
 umount "${MNT_PATH}"
 
 # =========================================================================
-# RAPPORTERING TILL SERVER
+# REPORTING TO SERVER
 # =========================================================================
-echo -e "\n=================================================="
-read -r -p "Ange ordernummer för att spara en rapport (eller tryck Enter för att hoppa över): " ORDERNUMBER
+echo -e "\n${CYAN}==================================================${NC}"
+read -r -p "Enter Order Number to save a report (or press Enter to skip): " ORDERNUMBER
 
 if [[ -n "$ORDERNUMBER" ]]; then
-    REPORT_DIR="/mnt/backupserver"
-    REPORT="$REPORT_DIR/${ORDERNUMBER} - Windows information.log"
+    REPORT_DIR="/mnt/backupserver/__reports"
     
-    # Kontrollera att servern faktiskt är mountad
-    if [ ! -d "$REPORT_DIR" ]; then
-        echo "❌ VARNING: Mappen $REPORT_DIR finns inte!"
-        echo "Servern verkar inte vara mountad. Rapporten kunde inte sparas."
-    else
-        # Skapa rapporten
-        echo "==================================================" > "$REPORT"
-        echo " WINDOWS INFORMATION REPORT" >> "$REPORT"
-        echo " Ordernummer: $ORDERNUMBER" >> "$REPORT"
-        echo " Datum: $(date)" >> "$REPORT"
-        echo "==================================================" >> "$REPORT"
-        echo "" >> "$REPORT"
-        echo "[ WINDOWS VERSION ]" >> "$REPORT"
-        echo "$INFO_OS" >> "$REPORT"
-        echo "" >> "$REPORT"
-        echo "[ PRODUKTNYCKEL (HÅRDDISK) ]" >> "$REPORT"
-        echo "$INFO_KEY" >> "$REPORT"
-        echo "" >> "$REPORT"
-        echo "[ OEM-NYCKEL (MODERKORT) ]" >> "$REPORT"
-        echo "$OEM_KEY" >> "$REPORT"
-        echo "" >> "$REPORT"
-        echo "==================================================" >> "$REPORT"
-        
-        echo "✅ Rapporten har sparats på servern som:"
-        echo "$REPORT"
-    fi
+    # Ensure the folder exists
+    mkdir -p "$REPORT_DIR" 2>/dev/null
+    
+    REPORT="${REPORT_DIR}/${ORDERNUMBER}_Windows_Info.log"
+    
+    # Create a perfectly clean report file without bash color codes
+    {
+        echo "=================================================="
+        echo " WINDOWS INFORMATION REPORT"
+        echo " Order Number: $ORDERNUMBER"
+        echo " Date: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "=================================================="
+        echo ""
+        echo "[ WINDOWS VERSION ]"
+        echo "$INFO_OS"
+        echo ""
+        echo "[ PRODUCT KEY (HARD DRIVE) ]"
+        echo "$INFO_KEY"
+        echo ""
+        echo "[ OEM KEY (MOTHERBOARD) ]"
+        echo "$OEM_KEY"
+        echo ""
+        echo "=================================================="
+    } > "$REPORT"
+    
+    echo -e "${GREEN}✅ The report has been saved to the server as:${NC}"
+    echo "$REPORT"
 else
-    echo "Ingen rapport sparades."
+    echo "No report was saved."
 fi
 
-echo "✅ Klart!"
+echo -e "${GREEN}✅ Done!${NC}"

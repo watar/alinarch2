@@ -1,0 +1,211 @@
+#!/bin/bash
+
+#######################################
+# S.M.A.R.T script (Modernized)       #
+#######################################
+# Supports: SATA, HDD, NVMe, and "all"#
+# Dependencies: smartctl, nvme-cli    #
+#######################################
+
+## Color Variables
+RED='\e[1;31m'
+GREEN='\e[1;32m'
+CYAN='\e[1;36m'
+WHITE='\e[1;37m'
+YELLOW='\e[1;33m'
+NC='\e[0m'
+
+clear
+echo -e "${CYAN}==================================================${NC}"
+echo -e "${WHITE} 🩺 S.M.A.R.T HEALTH CHECK${NC}"
+echo -e "${CYAN}==================================================${NC}"
+
+## List disks (Excluding loop devices and strictly filtering out USBs)
+lsblk -d -e 7 -o NAME,SIZE,MODEL,TRAN | grep -i -v "usb"
+echo ""
+
+## Asking for device name
+read -r -p "Enter device (e.g. sda), or press Enter to check ALL physical drives: " DEV_INPUT
+
+# Default to "all" if the user just presses Enter
+if [[ -z "$DEV_INPUT" ]]; then 
+    DEV_INPUT="all"
+fi
+
+# Determine which devices to process
+if [[ "${DEV_INPUT,,}" == "all" ]]; then
+    # Grab a clean list of all physical drives, explicitly filtering out "usb" connection types
+    DEVICES=$(lsblk -d -n -e 7 -o NAME,TRAN | grep -i -v "usb" | awk '{print $1}')
+else
+    # Strip /dev/ just in case it was typed, and set it as the only device
+    CLEAN_DEV="${DEV_INPUT#/dev/}"
+    DEVICES="$CLEAN_DEV"
+fi
+
+# ==========================================
+# HELPER FUNCTION: Smart Color Evaluator
+# ==========================================
+print_val() {
+    local name="$1"
+    local val="$2"
+    if [[ -z "$val" ]]; then val="N/A"; fi
+
+    if [[ "$val" =~ ^[1-9][0-9]*$ ]] && [[ "$name" =~ "Error" || "$name" =~ "Reallocated" || "$name" =~ "Pending" || "$name" =~ "Uncorrectable" || "$name" =~ "Critical" ]]; then
+        printf "%-28s : ${RED}%s${NC}\n" "$name" "$val"
+    else
+        printf "%-28s : ${GREEN}%s${NC}\n" "$name" "$val"
+    fi
+}
+
+# ==========================================
+# DATA GATHERING & OUTPUT FUNCTION
+# ==========================================
+generate_output() {
+    local DEV=$1
+    local TARGET="/dev/$DEV"
+    
+    if [[ "$DEV" == nvme* ]]; then
+        SMART_DATA=$(nvme smart-log "$TARGET")
+        CRIT=$(echo "$SMART_DATA" | grep "critical_warning" | awk -F ':' '{print $2}' | tr -d ' ')
+        TEMP=$(echo "$SMART_DATA" | grep "temperature" | grep -v "sensor" | awk -F ':' '{print $2}' | tr -d ' ')
+        USED=$(echo "$SMART_DATA" | grep "percentage_used" | awk -F ':' '{print $2}' | tr -d ' %')
+        HOURS=$(echo "$SMART_DATA" | grep "power_on_hours" | awk -F ':' '{print $2}' | tr -d ' ')
+        CYCLES=$(echo "$SMART_DATA" | grep "power_cycles" | awk -F ':' '{print $2}' | tr -d ' ')
+        ERRORS=$(echo "$SMART_DATA" | grep "media_errors" | awk -F ':' '{print $2}' | tr -d ' ')
+
+        echo -e "${CYAN}[ NVMe Health Log ]${NC}"
+        print_val "Power On Hours" "$HOURS"
+        print_val "Power Cycles" "$CYCLES"
+        print_val "Temperature" "$TEMP"
+        
+        if [[ -z "$USED" ]]; then
+            printf "%-28s : ${GREEN}N/A${NC}\n" "Percentage Used (Wear)"
+        elif [[ "$USED" -gt 80 ]]; then
+            printf "%-28s : ${RED}%s%%${NC}\n" "Percentage Used (Wear)" "$USED"
+        else
+            printf "%-28s : ${GREEN}%s%%${NC}\n" "Percentage Used (Wear)" "$USED"
+        fi
+        
+        print_val "Critical Warning" "$CRIT"
+        print_val "Media Errors" "$ERRORS"
+    else
+        SMART_DATA=$(smartctl -A "$TARGET")
+        RAW_READ=$(echo "$SMART_DATA" | grep "Raw_Read_Error_Rate" | awk '{print $10}')
+        REALLOC=$(echo "$SMART_DATA" | grep "Reallocated_Sector_Ct" | awk '{print $10}')
+        SEEK=$(echo "$SMART_DATA" | grep "Seek_Error_Rate" | awk '{print $10}')
+        SPIN=$(echo "$SMART_DATA" | grep "Spin_Retry_Count" | awk '{print $10}')
+        PENDING=$(echo "$SMART_DATA" | grep "Current_Pending_Sector" | awk '{print $10}')
+        OFFLINE=$(echo "$SMART_DATA" | grep "Offline_Uncorrectable" | awk '{print $10}')
+        CRC=$(echo "$SMART_DATA" | grep "UDMA_CRC_Error_Count" | awk '{print $10}')
+        TEMP=$(echo "$SMART_DATA" | grep -E "^194" | awk '{print $10}')
+        HOURS=$(echo "$SMART_DATA" | grep "Power_On_Hours" | awk '{print $10}')
+        STATUS=$(smartctl -H "$TARGET" | grep "test result" | sed 's/^.*: //')
+
+        echo -e "${CYAN}[ SATA/HDD S.M.A.R.T Data ]${NC}"
+        print_val "Power On Hours" "$HOURS"
+        print_val "Temperature (C)" "$TEMP"
+        print_val "Raw Read Error Rate" "$RAW_READ"
+        print_val "Seek Error Rate" "$SEEK"
+        print_val "Spin-Up Retry Count" "$SPIN"
+        print_val "Reallocated Sector Count" "$REALLOC"
+        print_val "Current Pending Sector" "$PENDING"
+        print_val "Offline Uncorrectable" "$OFFLINE"
+        print_val "UDMA CRC Error Count" "$CRC"
+
+        echo -e "\n${CYAN}[ Overall Health Assessment ]${NC}"
+        if [[ "$STATUS" == *"PASSED"* ]]; then
+            echo -e "Health Status: ${GREEN}PASSED${NC}"
+        else
+            echo -e "Health Status: ${RED}${STATUS}${NC}"
+        fi
+    fi
+}
+
+# ==========================================
+# SCREEN OUTPUT PHASE
+# ==========================================
+for DEV in $DEVICES; do
+    TARGET="/dev/$DEV"
+    
+    if [ ! -b "$TARGET" ]; then
+        echo -e "${RED}❌ Device $TARGET not found. Skipping.${NC}"
+        continue
+    fi
+
+    # Fetch hardware details
+    MODEL=$(lsblk -d -n -o MODEL "$TARGET" | xargs)
+    SERIAL=$(lsblk -d -n -o SERIAL "$TARGET" | xargs)
+    SIZE=$(lsblk -d -n -o SIZE "$TARGET" | xargs)
+    FIRMWARE=$(lsblk -d -n -o REV "$TARGET" | xargs)
+    
+    # Handle empty variables gracefully
+    [[ -z "$MODEL" ]] && MODEL="Unknown"
+    [[ -z "$SERIAL" ]] && SERIAL="Unknown"
+    
+    echo -e "\n${WHITE}Analyzing $TARGET...${NC}"
+    echo -e "  ${YELLOW}Model:${NC}    $MODEL"
+    echo -e "  ${YELLOW}Serial:${NC}   $SERIAL"
+    echo -e "  ${YELLOW}Size:${NC}     $SIZE"
+    echo -e "  ${YELLOW}Firmware:${NC} $FIRMWARE\n"
+    
+    generate_output "$DEV"
+    echo -e "${CYAN}--------------------------------------------------${NC}"
+done
+
+# ==========================================
+# SERVER EXPORT LOGIC
+# ==========================================
+echo ""
+read -r -p "Enter Order Number to save report to server (leave blank to exit): " ORDER_NUM
+
+if [[ -n "$ORDER_NUM" ]]; then
+    REPORT_DIR="/mnt/backupserver/__reports"
+    mkdir -p "$REPORT_DIR" 2>/dev/null
+    
+    # Determine the correct filename and header based on the user's choice
+    if [[ "${DEV_INPUT,,}" == "all" ]]; then
+        FILE_PATH="${REPORT_DIR}/${ORDER_NUM}_SMART_Report.log"
+        REPORT_TITLE="S.M.A.R.T MASTER HEALTH CHECK REPORT"
+    else
+        FILE_PATH="${REPORT_DIR}/${ORDER_NUM}_SMART_Report_${CLEAN_DEV}.log"
+        REPORT_TITLE="S.M.A.R.T HEALTH CHECK REPORT"
+    fi
+    
+    # Initialize the log file with the correct header
+    {
+        echo "=================================================="
+        echo " $REPORT_TITLE"
+        echo " Order Number: $ORDER_NUM"
+        echo " Date: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "=================================================="
+    } > "$FILE_PATH"
+    
+    # Append each drive's data into the file
+    for DEV in $DEVICES; do
+        TARGET="/dev/$DEV"
+        if [ ! -b "$TARGET" ]; then continue; fi
+        
+        # Fetch hardware details for the log file
+        MODEL=$(lsblk -d -n -o MODEL "$TARGET" | xargs)
+        SERIAL=$(lsblk -d -n -o SERIAL "$TARGET" | xargs)
+        SIZE=$(lsblk -d -n -o SIZE "$TARGET" | xargs)
+        FIRMWARE=$(lsblk -d -n -o REV "$TARGET" | xargs)
+        
+        [[ -z "$MODEL" ]] && MODEL="Unknown"
+        [[ -z "$SERIAL" ]] && SERIAL="Unknown"
+        
+        {
+            echo ""
+            echo "--------------------------------------------------"
+            echo " Device:   $TARGET"
+            echo " Model:    $MODEL"
+            echo " Serial:   $SERIAL"
+            echo " Size:     $SIZE"
+            echo " Firmware: $FIRMWARE"
+            echo "--------------------------------------------------"
+            generate_output "$DEV"
+        } | sed 's/\x1b\[[0-9;]*m//g' >> "$FILE_PATH"
+    done
+    
+    echo -e "${GREEN}✅ Complete SMART report saved to: $FILE_PATH${NC}"
+fi

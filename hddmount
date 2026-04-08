@@ -1,27 +1,118 @@
 #!/bin/bash
 
-#
-# Simpel script for listing available drives and mount chosen one.
-# Will also run the ntfsfix before mount, and the option -o remove_hiberfile to rid ourselfs of Windows "we can boot fast! promise!" hybrid hibernation bullshit.
-#
-
 clear
+echo "=================================================="
+echo " 💾 UNIVERSAL DISK MOUNT UTILITY"
+echo "=================================================="
 
-lsblk
+# Visar diskar och partitioner, filtrerar bort LiveCD:n och dolda loop-enheter
+lsblk -o NAME,FSTYPE,SIZE,MOUNTPOINT,MODEL -e 7 | grep -i -v -E "squashfs|iso9660|loop"
 
-read -r -p $'\x0aVilken disk ska mountas? ' SRC1
-echo -e '\n'
-echo "Vart ska den mountas?"
+echo -e "\n--------------------------------------------------"
 
-select SRC2 in "disk1" "disk2" "disk3" "disk4"; do
-    case $SRC2 in
-	disk1 ) ntfsfix /dev/$SRC1 ; mount /dev/${SRC1} /mnt/disk1 -o remove_hiberfile; break
-          ;;
-	disk2 ) ntfsfix /dev/$SRC1 ; mount /dev/${SRC1} /mnt/disk2 -o remove_hiberfile; break
-          ;;
-	disk3 ) ntfsfix /dev/$SRC1 ; mount /dev/${SRC1} /mnt/disk3 -o remove_hiberfile; break
-          ;;
-	disk4 ) ntfsfix /dev/$SRC1 ; mount /dev/${SRC1} /mnt/disk4 -o remove_hiberfile; break
-          ;;
+# Loop som förhindrar att skriptet kraschar vid felstavningar
+while true; do
+    read -r -p "Vilken partition ska mountas? (t.ex. sda1, nvme0n1p3 eller 'q' för att avbryta): " SRC1_INPUT
+    
+    # Möjlighet att avbryta smidigt
+    if [[ "${SRC1_INPUT,,}" == "q" ]]; then
+        echo "Avbryter montering."
+        exit 0
+    fi
+
+    if [[ -z "$SRC1_INPUT" ]]; then
+        echo "⚠️ Du måste ange en partition."
+        continue
+    fi
+
+    # Lägg till /dev/ automatiskt om det saknas
+    if [[ "$SRC1_INPUT" != /dev/* ]]; then
+        SRC1="/dev/$SRC1_INPUT"
+    else
+        SRC1="$SRC1_INPUT"
+    fi
+
+    # Säkerhetskontroll 1: Finns partitionen överhuvudtaget?
+    if [ ! -b "$SRC1" ]; then
+        echo "❌ FEL: Partitionen $SRC1 hittades inte. Kolla stavningen och försök igen."
+        continue
+    fi
+
+    # Säkerhetskontroll 2: Är disken redan monterad?
+    if grep -qs "^$SRC1 " /proc/mounts; then
+        MOUNTED_AT=$(grep -m1 "^$SRC1 " /proc/mounts | awk '{print $2}')
+        echo "⚠️ $SRC1 är redan monterad på $MOUNTED_AT! Välj en annan partition."
+        continue
+    fi
+
+    # Om allt ser bra ut, bryt loopen och fortsätt
+    break
+done
+
+echo -e "\nVart ska den mountas?"
+# Din ursprungliga select-meny bevarad
+select DEST_FOLDER in "disk1" "disk2" "disk3" "disk4" "Avsluta"; do
+    case $DEST_FOLDER in
+        disk1|disk2|disk3|disk4)
+            DEST="/mnt/$DEST_FOLDER"
+            # Skapa mappen om den mot förmodan inte finns
+            mkdir -p "$DEST"
+            break
+            ;;
+        Avsluta)
+            exit 0
+            ;;
+        *)
+            echo "Ogiltigt val, försök igen."
+            ;;
     esac
 done
+
+echo -e "\n=================================================="
+
+# Identifiera filsystemet automatiskt
+FSTYPE=$(blkid -s TYPE -o value "$SRC1")
+echo "🔍 Upptäckte filsystem: ${FSTYPE:-Okänt/Krypterat}"
+
+# Välj monteringsmetod baserat på filsystem
+case "${FSTYPE,,}" in
+    ntfs)
+        echo "🛠️ Reparerar NTFS-journal (ntfsfix)..."
+        ntfsfix "$SRC1"
+        echo "🚀 Monterar NTFS och rensar dvala-fil (hiberfile)..."
+        mount -t ntfs-3g "$SRC1" "$DEST" -o remove_hiberfile
+        ;;
+    vfat|fat16|fat32|exfat)
+        echo "🚀 Monterar FAT/exFAT-filsystem..."
+        # Tillåter läs/skriv-rättigheter för alla användare för smidigare kopiering
+        mount "$SRC1" "$DEST" -o rw,umask=000
+        ;;
+    ext2|ext3|ext4|btrfs|xfs)
+        echo "🚀 Monterar Linux-filsystem..."
+        mount "$SRC1" "$DEST"
+        ;;
+    apfs)
+        echo "🍏 Monterar Apple APFS-filsystem..."
+        apfs-fuse -o allow_other "$SRC1" "$DEST"
+        ;;
+    hfsplus)
+        echo "🍏 Monterar Apple HFS+ (Äldre Mac)..."
+        mount -t hfsplus -o ro "$SRC1" "$DEST"
+        ;;
+    crypto_luks|bitlocker)
+        echo "🔒 VARNING: Disken verkar vara krypterad ($FSTYPE)!"
+        echo "Du måste köra 'bitlocker'-skriptet istället för att montera denna disk direkt."
+        exit 1
+        ;;
+    *)
+        echo "⚠️ Okänt filsystem. Försöker med standardmontering..."
+        mount "$SRC1" "$DEST"
+        ;;
+esac
+
+# Bekräfta om monteringen lyckades
+if mountpoint -q "$DEST" || grep -qs "$DEST" /proc/mounts; then
+    echo -e "\n✅ KLART! $SRC1 är nu monterad och redo att utforskas på $DEST"
+else
+    echo -e "\n❌ FEL: Något gick fel vid monteringen av $SRC1."
+fi
