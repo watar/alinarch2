@@ -1,0 +1,54 @@
+#!/bin/bash
+
+clear
+echo "=================================================="
+echo " 🔥 GPU BURN-IN & STRESS TEST (FurMark 2)"
+echo "=================================================="
+
+# 1. Get order number (Optional, press Enter to skip)
+read -r -p "Enter Order Number for report (or press Enter just to test): " ORDER_NUM
+
+# 2. Create report file if order number was provided
+if [[ -n "$ORDER_NUM" ]]; then
+    # Save path (matches your original valuation folder structure)
+    DEST="/mnt/backupserver/värdering/$ORDER_NUM"
+    mkdir -p "$DEST"
+    
+    # Unified naming convention to match OCCT and SMART scripts
+    LOG_FILE="$DEST/${ORDER_NUM}_FM2_Report.log"
+    
+    echo "==================================================" > "$LOG_FILE"
+    echo " FurMark 2 Test Report - Order: $ORDER_NUM" >> "$LOG_FILE"
+    echo " Date: $(date)" >> "$LOG_FILE"
+    echo "==================================================" >> "$LOG_FILE"
+    
+    echo -e "\n[ GPU Information ]" >> "$LOG_FILE"
+    lspci | grep -E "VGA|3D" >> "$LOG_FILE"
+    echo "--------------------------------------------------" >> "$LOG_FILE"
+    
+    echo -e "\n📝 Report will be saved in: $LOG_FILE"
+else
+    # Sends output to a black hole if no order number is provided
+    LOG_FILE="/dev/null"
+    echo -e "\n⚠️ No Order Number provided. Running test only without saving report."
+fi
+
+echo -e "\n🚀 Starting 10-minute Vulkan stress test..."
+echo "Let the test finish! It will close automatically and save the result after exactly 10 minutes."
+echo "Press Enter to start."
+read -r
+
+# 3. Run FurMark 2 in Benchmark mode
+# --benchmark forces a final result
+# --max-time 600000 sets an exact limit of 10 minutes
+# 2>&1 captures both standard output and error messages, and 'tee -a' saves it in the log
+/usr/local/bin/furmark2/furmark --demo furmark-vk --benchmark --max-time 600000 2>&1 | tee -a "$LOG_FILE"
+
+if [[ -n "$ORDER_NUM" ]]; then
+    echo -e "\n=================================================="
+    echo "✅ The test is complete!"
+    echo "✅ The result has been saved on the server in: $LOG_FILE"
+    echo "=================================================="
+else
+    echo -e "\n✅ The test is complete!"
+fi

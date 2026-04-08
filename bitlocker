@@ -5,22 +5,22 @@ echo "=================================================="
 echo " --- BitLocker Mount Tool ---"
 echo "=================================================="
 
-# Visa tillgängliga partitioner
+# Show available partitions
 echo "Available partitions:"
 lsblk -o NAME,SIZE,TYPE,FSTYPE | grep -i "part"
 
 echo ""
-# Uppdaterad prompt: Ber bara om sda3
+# Updated prompt: Only asks for the partition name (e.g., sda3)
 read -r -p "Enter the partition to decrypt (e.g., sda3): " SRC_INPUT
 
-# Smart logik: Lägg till /dev/ automatiskt om det saknas
+# Smart logic: Automatically add /dev/ if it is missing
 if [[ "$SRC_INPUT" == /dev/* ]]; then
     SRC_PART="$SRC_INPUT"
 else
     SRC_PART="/dev/$SRC_INPUT"
 fi
 
-# Kontrollera att partitionen finns
+# Check that the partition exists
 if [ ! -b "$SRC_PART" ]; then
     echo "❌ Error: Partition $SRC_PART does not exist!"
     exit 1
@@ -44,38 +44,38 @@ esac
 
 echo "You selected $DEST_MOUNT"
 
-# Den dolda mappen där dislocker skapar sin virtuella fil
+# The hidden folder where dislocker creates its virtual file
 DECRYPT_DIR="/mnt/.dislocker"
 
-# Skapa mapparna om de inte finns
+# Create the folders if they don't exist
 mkdir -p "$DECRYPT_DIR"
 mkdir -p "$DEST_MOUNT"
 
-# Avmontera den dolda mappen om ett tidigare test fastnade
+# Unmount the hidden folder if a previous test got stuck
 if mountpoint -q "$DECRYPT_DIR"; then
     umount "$DECRYPT_DIR"
 fi
 
 echo ""
-# Ber direkt om Recovery Key (48 siffror)
-# Tog bort -s flaggan så att nyckeln syns i klartext när man skriver/klistrar in
-read -r -p "Ange BitLocker Recovery Key (48 siffror): " BL_KEY
+# Asks directly for the Recovery Key (48 digits)
+# Removed the -s flag so the key is visible in plain text when typing/pasting
+read -r -p "Enter BitLocker Recovery Key (48 digits): " BL_KEY
 echo ""
 
 echo ""
 echo "Step 1: Decrypting BitLocker volume ($SRC_PART)..."
 
-# Dislocker använder nu alltid -p (för Recovery Keys)
+# Dislocker now always uses -p (for Recovery Keys)
 dislocker -V "$SRC_PART" -p"$BL_KEY" -- "$DECRYPT_DIR"
 
-# Kontrollera om dekrypteringen lyckades genom att leta efter filen dislocker skapar
+# Check if decryption succeeded by looking for the file dislocker creates
 if [ ! -f "$DECRYPT_DIR/dislocker-file" ]; then
     echo "❌ Decryption failed. Check your recovery key."
     exit 1
 fi
 
 echo "Step 2: Mounting the decrypted file system..."
-# Montera den virtuella ntfs-filen till den synliga mappen
+# Mount the virtual ntfs file to the visible folder
 mount -o loop "$DECRYPT_DIR/dislocker-file" "$DEST_MOUNT"
 
 if [ $? -eq 0 ]; then

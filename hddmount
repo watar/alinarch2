@@ -5,114 +5,114 @@ echo "=================================================="
 echo " 💾 UNIVERSAL DISK MOUNT UTILITY"
 echo "=================================================="
 
-# Visar diskar och partitioner, filtrerar bort LiveCD:n och dolda loop-enheter
+# Show disks and partitions, filter out the LiveCD and hidden loop devices
 lsblk -o NAME,FSTYPE,SIZE,MOUNTPOINT,MODEL -e 7 | grep -i -v -E "squashfs|iso9660|loop"
 
 echo -e "\n--------------------------------------------------"
 
-# Loop som förhindrar att skriptet kraschar vid felstavningar
+# Loop that prevents the script from crashing on typos
 while true; do
-    read -r -p "Vilken partition ska mountas? (t.ex. sda1, nvme0n1p3 eller 'q' för att avbryta): " SRC1_INPUT
+    read -r -p "Which partition to mount? (e.g. sda1, nvme0n1p3 or 'q' to abort): " SRC1_INPUT
     
-    # Möjlighet att avbryta smidigt
+    # Ability to abort smoothly
     if [[ "${SRC1_INPUT,,}" == "q" ]]; then
-        echo "Avbryter montering."
+        echo "Aborting mount."
         exit 0
     fi
 
     if [[ -z "$SRC1_INPUT" ]]; then
-        echo "⚠️ Du måste ange en partition."
+        echo "⚠️ You must specify a partition."
         continue
     fi
 
-    # Lägg till /dev/ automatiskt om det saknas
+    # Add /dev/ automatically if it is missing
     if [[ "$SRC1_INPUT" != /dev/* ]]; then
         SRC1="/dev/$SRC1_INPUT"
     else
         SRC1="$SRC1_INPUT"
     fi
 
-    # Säkerhetskontroll 1: Finns partitionen överhuvudtaget?
+    # Security check 1: Does the partition even exist?
     if [ ! -b "$SRC1" ]; then
-        echo "❌ FEL: Partitionen $SRC1 hittades inte. Kolla stavningen och försök igen."
+        echo "❌ ERROR: Partition $SRC1 not found. Check the spelling and try again."
         continue
     fi
 
-    # Säkerhetskontroll 2: Är disken redan monterad?
+    # Security check 2: Is the disk already mounted?
     if grep -qs "^$SRC1 " /proc/mounts; then
         MOUNTED_AT=$(grep -m1 "^$SRC1 " /proc/mounts | awk '{print $2}')
-        echo "⚠️ $SRC1 är redan monterad på $MOUNTED_AT! Välj en annan partition."
+        echo "⚠️ $SRC1 is already mounted at $MOUNTED_AT! Choose another partition."
         continue
     fi
 
-    # Om allt ser bra ut, bryt loopen och fortsätt
+    # If everything looks good, break the loop and continue
     break
 done
 
-echo -e "\nVart ska den mountas?"
-# Din ursprungliga select-meny bevarad
-select DEST_FOLDER in "disk1" "disk2" "disk3" "disk4" "Avsluta"; do
+echo -e "\nWhere should it be mounted?"
+# Your original select menu preserved
+select DEST_FOLDER in "disk1" "disk2" "disk3" "disk4" "Quit"; do
     case $DEST_FOLDER in
         disk1|disk2|disk3|disk4)
             DEST="/mnt/$DEST_FOLDER"
-            # Skapa mappen om den mot förmodan inte finns
+            # Create the folder if it against all odds does not exist
             mkdir -p "$DEST"
             break
             ;;
-        Avsluta)
+        Quit)
             exit 0
             ;;
         *)
-            echo "Ogiltigt val, försök igen."
+            echo "Invalid choice, try again."
             ;;
     esac
 done
 
 echo -e "\n=================================================="
 
-# Identifiera filsystemet automatiskt
+# Identify the file system automatically
 FSTYPE=$(blkid -s TYPE -o value "$SRC1")
-echo "🔍 Upptäckte filsystem: ${FSTYPE:-Okänt/Krypterat}"
+echo "🔍 Discovered file system: ${FSTYPE:-Unknown/Encrypted}"
 
-# Välj monteringsmetod baserat på filsystem
+# Choose mounting method based on file system
 case "${FSTYPE,,}" in
     ntfs)
-        echo "🛠️ Reparerar NTFS-journal (ntfsfix)..."
+        echo "🛠️ Repairing NTFS journal (ntfsfix)..."
         ntfsfix "$SRC1"
-        echo "🚀 Monterar NTFS och rensar dvala-fil (hiberfile)..."
+        echo "🚀 Mounting NTFS and clearing hibernation file (hiberfile)..."
         mount -t ntfs-3g "$SRC1" "$DEST" -o remove_hiberfile
         ;;
     vfat|fat16|fat32|exfat)
-        echo "🚀 Monterar FAT/exFAT-filsystem..."
-        # Tillåter läs/skriv-rättigheter för alla användare för smidigare kopiering
+        echo "🚀 Mounting FAT/exFAT file system..."
+        # Allows read/write permissions for all users for smoother copying
         mount "$SRC1" "$DEST" -o rw,umask=000
         ;;
     ext2|ext3|ext4|btrfs|xfs)
-        echo "🚀 Monterar Linux-filsystem..."
+        echo "🚀 Mounting Linux file system..."
         mount "$SRC1" "$DEST"
         ;;
     apfs)
-        echo "🍏 Monterar Apple APFS-filsystem..."
+        echo "🍏 Mounting Apple APFS file system..."
         apfs-fuse -o allow_other "$SRC1" "$DEST"
         ;;
     hfsplus)
-        echo "🍏 Monterar Apple HFS+ (Äldre Mac)..."
+        echo "🍏 Mounting Apple HFS+ (Older Mac)..."
         mount -t hfsplus -o ro "$SRC1" "$DEST"
         ;;
     crypto_luks|bitlocker)
-        echo "🔒 VARNING: Disken verkar vara krypterad ($FSTYPE)!"
-        echo "Du måste köra 'bitlocker'-skriptet istället för att montera denna disk direkt."
+        echo "🔒 WARNING: The disk appears to be encrypted ($FSTYPE)!"
+        echo "You must run the 'bitlocker' script instead to mount this disk directly."
         exit 1
         ;;
     *)
-        echo "⚠️ Okänt filsystem. Försöker med standardmontering..."
+        echo "⚠️ Unknown file system. Trying standard mount..."
         mount "$SRC1" "$DEST"
         ;;
 esac
 
-# Bekräfta om monteringen lyckades
+# Confirm if the mount was successful
 if mountpoint -q "$DEST" || grep -qs "$DEST" /proc/mounts; then
-    echo -e "\n✅ KLART! $SRC1 är nu monterad och redo att utforskas på $DEST"
+    echo -e "\n✅ DONE! $SRC1 is now mounted and ready to be explored at $DEST"
 else
-    echo -e "\n❌ FEL: Något gick fel vid monteringen av $SRC1."
+    echo -e "\n❌ ERROR: Something went wrong when mounting $SRC1."
 fi

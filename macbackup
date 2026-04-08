@@ -5,64 +5,64 @@ echo "=================================================="
 echo " 🍏 MACOS DISK BACKUP UTILITY"
 echo "=================================================="
 
-# 1. Hämta ordernummer eller sökväg
+# 1. Get order number or path
 DEST_INPUT="$1"
 if [[ -z "$DEST_INPUT" ]]; then
-    read -r -p "Ange ordernummer (eller fullständig sökväg): " DEST_INPUT
+    read -r -p "Enter order number (or full path): " DEST_INPUT
     if [[ -z "$DEST_INPUT" ]]; then
-        echo -e "\n❌ Inget mål angivet. Avbryter."
+        echo -e "\n❌ No target specified. Aborting."
         exit 1
     fi
 fi
 
-# 2. Skapa destinationen
+# 2. Create the destination
 if [[ "$DEST_INPUT" == /* ]]; then
     DEST="$DEST_INPUT"
 else
     DEST="/mnt/backupserver/$DEST_INPUT"
 fi
 
-echo -e "\nSkapar backup-mapp på servern..."
+echo -e "\nCreating backup folder on the server..."
 mkdir -p -v "$DEST"
 
-# Kolla ledigt utrymme på servern
-echo -e "\nDiskutrymme på destinationen:"
+# Check free space on the server
+echo -e "\nDisk space at destination:"
 df -h "$DEST"
 
-# 3. Säkerhetskontroll för källan (Körs från aktuell mapp)
+# 3. Security check for the source (Runs from current folder)
 SOURCE_DIR=$(pwd)
-echo -e "\n[ KONTROLL AV SÖKVÄGAR ]"
-echo "Från (Källa): $SOURCE_DIR"
-echo "Till (Server): $DEST"
+echo -e "\n[ CHECKING PATHS ]"
+echo "From (Source): $SOURCE_DIR"
+echo "To (Server): $DEST"
 
 if [[ "$SOURCE_DIR" == "/" ]] || [[ "$SOURCE_DIR" == "/root" ]]; then
-    echo -e "\n❌ VARNING: Du befinner dig i LiveCD:ns rotmapp!"
-    echo "Du måste navigera till den monterade APFS-disken (t.ex. cd /mnt/disk1) innan du kör backupen."
+    echo -e "\n❌ WARNING: You are in the LiveCD root folder!"
+    echo "You must navigate to the mounted APFS disk (e.g., cd /mnt/disk1) before running the backup."
     exit 1
 fi
 
-echo -e "\nTryck Enter för att starta backupen, eller Ctrl+C för att avbryta."
+echo -e "\nPress Enter to start the backup, or Ctrl+C to abort."
 read -r
 
-# 4. Lista med exkluderade filer och mappar för macOS
+# 4. List of excluded files and folders for macOS
 EXCLUDES=(
-    # --- MACOS SYSTEMFILER & INDEXERING ---
+    # --- MACOS SYSTEM FILES & INDEXING ---
     ".Spotlight-V100"
     ".fseventsd"
     ".DocumentRevisions-V100"
     ".vol"
     ".PKInstallSandboxManager-SystemSoftware"
     "cores"
-    "private/var/vm"      # Innehåller gigantiska RAM- och Sleep-filer
-    "private/var/folders" # Systemets temporära mappar
+    "private/var/vm"      # Contains gigantic RAM and Sleep files
+    "private/var/folders" # System temporary folders
 
-    # --- PAPPERKORGAR ---
+    # --- RECYCLE BINS ---
     ".Trashes"
     ".Trash"
     "Users/*/.Trash"
 
-    # --- MACOS OS-MAPP OCH APPLIKATIONER ---
-    # Vi exkluderar dessa för att bara rädda användardata och spara serverutrymme
+    # --- MACOS OS FOLDER AND APPLICATIONS ---
+    # We exclude these to only save user data and save server space
     "Applications"
     "System"
     "bin"
@@ -70,45 +70,45 @@ EXCLUDES=(
     "usr"
     "Network"
 
-    # --- SYSTEM-CACHAR OCH LOGGAR ---
+    # --- SYSTEM CACHES AND LOGS ---
     "Library/Caches"
     "Library/Logs"
 
-    # --- ANVÄNDARNAS CACHAR & TILLFÄLLIGA FILER ---
+    # --- USERS' CACHES & TEMPORARY FILES ---
     "Users/*/Library/Caches"
     "Users/*/Library/Logs"
     "Users/*/Library/Containers/*/Data/Library/Caches"
     "Users/*/Library/Saved Application State"
-    "Users/*/Library/Developer/Xcode/DerivedData" # Kan ta upp tiotals GB om kunden kodar
+    "Users/*/Library/Developer/Xcode/DerivedData" # Can take up tens of GB if the customer codes
 
-    # --- WEBBLÄSARCACHAR ---
+    # --- BROWSER CACHES ---
     "Users/*/Library/Caches/Google/Chrome"
     "Users/*/Library/Caches/com.apple.Safari"
     "Users/*/Library/Caches/Mozilla/Firefox"
 
-    # --- ONÖDIGA METADATA-FILER ---
+    # --- UNNECESSARY METADATA FILES ---
     ".DS_Store"
     ".AppleDouble"
     ".LSOverride"
     "._*"
 )
 
-# Bygg rsync-flaggorna dynamiskt från arrayen ovan
+# Build the rsync flags dynamically from the array above
 RSYNC_EXCLUDES=()
 for e in "${EXCLUDES[@]}"; do
     RSYNC_EXCLUDES+=("--exclude=$e")
 done
 
-# 5. Kör den optimerade rsync-kopieringen
-echo -e "\n🚀 Startar filkopiering av macOS-data (Detta kan ta lite tid)...\n"
+# 5. Run the optimized rsync copy
+echo -e "\n🚀 Starting file copy of macOS data (This may take some time)...\n"
 
-# Använder samma säkra flaggor som Windows-scriptet
+# Uses the same secure flags as the Windows script
 rsync -avuS --progress --numeric-ids \
       --no-owner --no-group --no-perms --chmod=u=rwX \
       "${RSYNC_EXCLUDES[@]}" \
       . "$DEST"
 
 echo -e "\n=================================================="
-echo "✅ Kopiering klar och rättigheter justerade."
-echo "✅ macOS Backup för '$DEST_INPUT' är färdig."
+echo "✅ Copy complete and permissions adjusted."
+echo "✅ macOS Backup for '$DEST_INPUT' is finished."
 echo "=================================================="

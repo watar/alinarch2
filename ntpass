@@ -1,69 +1,68 @@
 #!/bin/bash
 
 # Simple script to nuke Windows passwords/enable or disable users with chntpw.
-
 clear
-echo -e "--- WINDOWS LÖSENORDSÅTERSTÄLLNING ---"
+echo -e "--- WINDOWS PASSWORD RECOVERY ---"
 
 lsblk
-read -r -p $'\nVilken disk är kundens WINDOWS disk? (t.ex. sda3 eller nvme0n1p3): ' SRC1
+read -r -p $'\nWhich disk is the customer\'s WINDOWS disk?\n(e.g., sda3 or nvme0n1p3): ' SRC1
 
-# 1. Säkerhetskontroll för BitLocker
+# 1. Security check for BitLocker
 if blkid /dev/$SRC1 | grep -q "BitLocker"; then
-    echo -e "\n❌ VARNING: Disken är BitLocker-krypterad!"
-    echo "Du måste låsa upp den med 'dislocker' manuellt innan du kan ändra lösenord."
+    echo -e "\n❌ WARNING: The disk is BitLocker encrypted!"
+    echo "You must unlock it manually with 'dislocker' before you can change passwords."
     exit 1
 fi
 
-echo -e "\nVart ska windows-disken mountas?"
+echo -e "\nWhere should the Windows disk be mounted?"
 
-# 2. Skapa en snygg numrerad meny med exakta val (disk1 - disk4)
-PS3=$'\nVälj en katalog (skriv siffra 1-4): '
+# 2. Create a nice numbered menu with exact choices (disk1 - disk4)
+PS3=$'\nChoose a directory (type number 1-4): '
 
 select OPTION in "disk1" "disk2" "disk3" "disk4"; do
     if [[ -n "$OPTION" ]]; then
         MNT_PATH="/mnt/$OPTION"
         
-        # Se till att mappen faktiskt existerar i /mnt
+        # Make sure the folder actually exists in /mnt
         mkdir -p "$MNT_PATH"
         break
     else
-        echo "Ogiltigt val, försök igen."
+        echo "Invalid choice, try again."
     fi
 done
 
-# 3. Försök att mounta disken
-echo -e "\nFörsöker reparera och mounta disken till $MNT_PATH ..."
+# 3. Try to mount the disk
+echo -e "\nTrying to repair and mount the disk to $MNT_PATH ..."
 ntfsfix /dev/$SRC1 > /dev/null 2>&1
 
 if ! mount -t ntfs-3g /dev/${SRC1} "${MNT_PATH}" -o remove_hiberfile; then
-    echo "❌ Kunde inte mounta disken. Avbryter."
+    echo "❌ Could not mount the disk. Aborting."
     exit 1
 fi
 
-# 4. Hitta SAM-filen oavsett om mapparna har stora eller små bokstäver
+# 4. Find the SAM file regardless of whether the folders have uppercase or lowercase letters
 SAM_PATH=$(find "${MNT_PATH}" -maxdepth 4 -ipath "*/windows/system32/config/sam" | head -n 1)
 
 if [[ -z "$SAM_PATH" ]]; then
-    echo "❌ Hittade ingen SAM-fil. Är du säker på att detta är Windows-disken?"
+    echo "❌ Could not find a SAM file. Are you sure this is the Windows disk?"
     umount "${MNT_PATH}"
     exit 1
 fi
 
-echo -e "\n✅ Hittade SAM-filen: $SAM_PATH\n"
+echo -e "\n✅ Found SAM file: $SAM_PATH\n"
 
-# Visa användare
+# Show users
 chntpw -l "$SAM_PATH"
 
-echo -e "\nVilken användare vill du redigera?"
-echo "Tips: Skriv in exakt användarnamn, ELLER hex-koden för RID (t.ex. 0x01f4 för Administrator)."
+echo -e "\nWhich user do you want to edit?"
+echo "Tip: Enter the exact username, OR the hex code for the RID (e.g., 0x01f4 for Administrator)."
 read -r -p "> " SamUser
 
-# Starta chntpw
+# Start chntpw
 chntpw -u "${SamUser}" "$SAM_PATH"
 
-# 5. KRITISKT: Unmounta för att tvinga Linux att skriva ändringarna till disken!
-echo -e "\nAvmonterar disken säkert för att spara ändringarna till SAM-filen..."
+# 5. CRITICAL: Unmount to force Linux to write changes to the disk!
+echo -e "\nSafely unmounting the disk to save changes to the SAM file..."
 umount "${MNT_PATH}"
-echo "✅ Klart! Om inga felmeddelanden dök upp kan du nu starta om datorn."
+echo "✅ Done! If no error messages appeared, you can now restart the computer."
 echo " "

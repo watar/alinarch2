@@ -5,48 +5,48 @@ echo "=================================================="
 echo " WINDOWS DISK BACKUP UTILITY"
 echo "=================================================="
 
-# 1. Hämta ordernummer eller sökväg
+# 1. Get order number or path
 DEST_INPUT="$1"
 if [[ -z "$DEST_INPUT" ]]; then
-    read -r -p "Ange ordernummer (eller fullständig sökväg): " DEST_INPUT
+    read -r -p "Enter order number (or full path): " DEST_INPUT
     if [[ -z "$DEST_INPUT" ]]; then
-        echo -e "\n❌ Inget mål angivet. Avbryter."
+        echo -e "\n❌ No target specified. Aborting."
         exit 1
     fi
 fi
 
-# 2. Skapa destinationen
+# 2. Create the destination
 if [[ "$DEST_INPUT" == /* ]]; then
     DEST="$DEST_INPUT"
 else
     DEST="/mnt/backupserver/$DEST_INPUT"
 fi
 
-echo -e "\nSkapar backup-mapp på servern..."
+echo -e "\nCreating backup folder on the server..."
 mkdir -p -v "$DEST"
 
-# Kolla ledigt utrymme på servern (efter att mappen skapats!)
-echo -e "\nDiskutrymme på destinationen:"
+# Check free space on the server (after the folder is created!)
+echo -e "\nDisk space at destination:"
 df -h "$DEST"
 
-# 3. Säkerhetskontroll för källan (Körs från aktuell mapp)
+# 3. Security check for the source (Runs from current folder)
 SOURCE_DIR=$(pwd)
-echo -e "\n[ KONTROLL AV SÖKVÄGAR ]"
-echo "Från (Källa): $SOURCE_DIR"
-echo "Till (Server): $DEST"
+echo -e "\n[ CHECKING PATHS ]"
+echo "From (Source): $SOURCE_DIR"
+echo "To (Server): $DEST"
 
 if [[ "$SOURCE_DIR" == "/" ]] || [[ "$SOURCE_DIR" == "/root" ]]; then
-    echo -e "\n❌ VARNING: Du befinner dig i LiveCD:ns rotmapp!"
-    echo "Du måste navigera till kundens monterade disk (t.ex. cd /mnt/disk1) innan du kör backupen."
+    echo -e "\n❌ WARNING: You are in the LiveCD root folder!"
+    echo "You must navigate to the customer's mounted disk (e.g., cd /mnt/disk1) before running the backup."
     exit 1
 fi
 
-echo -e "\nTryck Enter för att starta backupen, eller Ctrl+C för att avbryta."
+echo -e "\nPress Enter to start the backup, or Ctrl+C to abort."
 read -r
 
-# 4. Lista med exkluderade filer och mappar (Lätt att redigera!)
+# 4. List of excluded files and folders (Easy to edit!)
 EXCLUDES=(
-    # --- KÄRN-SYSTEMFILER OCH PAPPERKORGAR ---
+    # --- CORE SYSTEM FILES AND RECYCLE BINS ---
     "[pP]age[fF]ile.sys"
     "[hH]iber[fF]il.sys"
     "[sS]wap[fF]ile.sys"
@@ -56,7 +56,7 @@ EXCLUDES=(
     "System Volume Information"
     "Recovery"
 
-    # --- GAMLA UPPDATERINGAR OCH INSTALLATIONER ---
+    # --- OLD UPDATES AND INSTALLATIONS ---
     "[wW][iI][nN][dD][oO][wW][sS]10[uU]pgrade"
     "[wW][iI][nN][dD][oO][wW][sS]/\$NtUninstall*\$"
     "[wW][iI][nN][dD][oO][wW][sS]/ServicePackFiles"
@@ -69,7 +69,7 @@ EXCLUDES=(
     "\$hf_mig\$"
     "*[cC]atroot"
 
-    # --- SPECIFIKA PROGRAM & DRIVRUTINER ---
+    # --- SPECIFIC PROGRAMS & DRIVERS ---
     "NVIDIA/DisplayDriver"
     "Program Files/F-Secure Internet Security"
     "ProgramData/Microsoft/OEMOffice14"
@@ -81,7 +81,7 @@ EXCLUDES=(
     "ProgramData/Microsoft/ClickToRun"
     "ProgramData/Microsoft/[wW]indows [dD]efender/[sS]cans"
 
-    # --- WINDOWS SYSTEM-SKRÄP OCH LOGGAR ---
+    # --- WINDOWS SYSTEM JUNK AND LOGS ---
     "[wW][iI][nN][dD][oO][wW][sS]/[wW]in[sS]x[sS]"
     "[wW][iI][nN][dD][oO][wW][sS]/[hH]elp"
     "[wW][iI][nN][dD][oO][wW][sS]/SysWOW64"
@@ -98,12 +98,12 @@ EXCLUDES=(
     "[wW][iI][nN][dD][oO][wW][sS]/[sS]ystem32/winevt/[lL]ogs"
     "[pP]erf[lL]ogs"
 
-    # --- ANVÄNDARNAS TILLFÄLLIGA FILER ---
+    # --- USERS' TEMPORARY FILES ---
     "*[aA]pp[dD]ata/[lL]ocal/[tT]emp"
     "*[aA]pp[dD]ata/[lL]ocal/[dD]ownloaded [iI]nstallations"
     "[tT]emporary [iI]nternet [fF]iles"
 
-    # --- WEBBLÄSARE OCH APP-CACHAR (UPPDATERAD MED DJUPSÖKNING) ---
+    # --- BROWSER AND APP CACHES (UPDATED WITH DEEP SCAN) ---
     "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/*[cC]ache*"
     "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/CacheStorage"
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/*[cC]ache*"
@@ -112,19 +112,19 @@ EXCLUDES=(
     "*[aA]pp[dD]ata/[lL]ocal/Spotify/[sS]torage"
     "*[aA]pp[dD]ata/[rR]oaming/discord/[cC]ache"
 
-    # --- MICROSOFT STORE & UWP CACHAR ---
+    # --- MICROSOFT STORE & UWP CACHES ---
     "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[lL]ocal[cC]ache"
     "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[aA][cC]"
     "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[tT]emp[sS]tate"
 
-    # --- INBYGGDA MICROSOFT CACHAR & TEAMS ---
+    # --- BUILT-IN MICROSOFT CACHES & TEAMS ---
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[wW]eb[cC]ache"
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[iI]Net[cC]ache"
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[eE]xplorer/thumbcache_*.db"
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[cC]ache"
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[aA]pp[cC]ache"
 
-    # --- BLOATWARE (RADERA HELA MAPPEN) ---
+    # --- BLOATWARE (DELETE ENTIRE FOLDER) ---
     "*[aA]pp[dD]ata/[lL]ocal/Packages/*[cC]andy[cC]rush*"
     "*[aA]pp[dD]ata/[lL]ocal/Packages/*[kK]ing.com*"
     "*[aA]pp[dD]ata/[lL]ocal/Packages/*[bB]ubble[wW]itch*"
@@ -132,14 +132,14 @@ EXCLUDES=(
     "*[aA]pp[dD]ata/[lL]ocal/Packages/*[tT]ik[tT]ok*"
 )
 
-# Bygg rsync-flaggorna dynamiskt från arrayen ovan
+# Build the rsync flags dynamically from the array above
 RSYNC_EXCLUDES=()
 for e in "${EXCLUDES[@]}"; do
     RSYNC_EXCLUDES+=("--exclude=$e")
 done
 
-# 5. Kör den optimerade rsync-kopieringen
-echo -e "\n🚀 Startar filkopiering (Detta kan ta lite tid)...\n"
+# 5. Run the optimized rsync copy
+echo -e "\n🚀 Starting file copy (This may take some time)...\n"
 
 rsync -avuS --progress --numeric-ids \
       --no-owner --no-group --no-perms --chmod=u=rwX \
@@ -147,6 +147,6 @@ rsync -avuS --progress --numeric-ids \
       . "$DEST"
 
 echo -e "\n=================================================="
-echo "✅ Kopiering klar och rättigheter justerade."
-echo "✅ Backup för '$DEST_INPUT' är färdig."
+echo "✅ Copy complete and permissions adjusted."
+echo "✅ Backup for '$DEST_INPUT' is finished."
 echo "=================================================="

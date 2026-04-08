@@ -1,0 +1,66 @@
+==================================================
+       ALINA ARCH LIVECD - CHANGELOG
+==================================================
+
+VERSION: 2.0.1
+DATUM: 2026-04-08
+STATUS: Stabil / Produktionsklar
+
+ÖVERGRIPANDE ÄNDRINGAR:
+-----------------------
+- Migrerat alla tekniker-skript från svenska till engelska för ökad kompatibilitet.
+- Implementerat en enhetlig namnstandard för rapporter på backupservern.
+- Modulariserat arbetsflödet: Separerat montering, diagnostik och backup.
+- Pensionerat det gamla "allt-i-ett"-skriptet 'userback' till förmån för mer stabila verktyg.
+
+SKRIPT-UPPDATERINGAR & NYHETER:
+-------------------------------
+
+1. smart (Uppdatering)
+   - Förbättrad filtrering för att automatiskt ignorera LiveCD-USB.
+   - Lagt till färgkodad PASS/FAIL-status för snabbare avläsning.
+
+2. hardware (Uppdatering)
+   - Uppdaterad loggningslogik för att inkludera mer detaljerad GPU- och NVMe-info.
+
+3. occt-report (Stor uppdatering)
+   - Hårdkodat timern till exakt 2 minuter för att förenkla för tekniker.
+   - Borttaget manuellt val av tid.
+   - Implementerat terminal-beep/bell vid avslutad timer.
+
+4. fm-report (Nytt skript)
+   - Ersätter de gamla 'fmstress' och 'fmstress2'.
+   - Flyttad till fast sökväg: /usr/local/bin/furmark2/.
+   - Kör nu 10 minuters benchmark med automatisk loggning till servern.
+
+5. snap (Nytt skript) [cite: 88, 89]
+   - Möjliggör manuella skärmdumpar av valfria fönster eller ytor via 'scrot'. [cite: 91]
+   - Sparar filer med tidsstämpel för att undvika överskrivning. [cite: 91]
+
+6. bitlocker (Översättning/Optimering)
+   - Hela gränssnittet översatt till engelska.
+   - Rensat promptar för att vara mer direkta.
+
+7. hddmount / macmount (Optimering) [cite: 14]
+   - Integrerad logik för att automatiskt fixa NTFS-journaler och ta bort 'hiberfile'.
+   - Förbättrad felhantering vid felaktiga partitionsnamn.
+
+8. diskbackup / macbackup (Optimering) [cite: 1, 9]
+   - Ersätter behovet av 'userback'.
+   - Använder nu en inbyggd array för exkluderingar istället för extern textfil. [cite: 11]
+   - Rensar nu mer effektivt bort webbläsarcache och systembloat. [cite: 10, 11]
+
+9. ntpass (Översättning) [cite: 27]
+   - Fullt översatt gränssnitt. [cite: 28]
+   - Lagt till BitLocker-varning om disken är låst vid start. [cite: 30]
+
+BORTTAGNA SKRIPT (DEPRECATED):
+------------------------------
+- userback: Pensionerat pga komplexitet och risk för dubbelkopiering. [cite: 43, 79]
+- fmstress / fmstress2: Ersatta av fm-report.
+
+--------------------------------------------------
+KONTAKT: Ralf R.
+E-POST: ralf.rangedahl@alina.se
+VERSION 2.0.1 - Alina Arch Diagnostics
+--------------------------------------------------
