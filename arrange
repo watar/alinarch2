@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Hämta ID för det aktiva skrivbordet
+current_desktop=$(xdotool get_desktop)
+
+# Hämta alla fönster-ID:n på det aktiva skrivbordet
+# Vi filtrerar bort fönster som saknar namn eller som är systemkomponenter
+windows=$(xdotool search --desktop "$current_desktop" --onlyvisible --name "." | while read -r id; do
+    name=$(xdotool getwindowname "$id" 2>/dev/null)
+    # Ignorera skrivbordet (Xfce Desktop) och panelen
+    if [[ ! "$name" =~ "xfce4-panel" ]] && [[ ! "$name" =~ "Desktop" ]]; then
+        echo "$id"
+    fi
+done)
+
+# Räkna fönster
+count=$(echo "$windows" | wc -w)
+
+if [ "$count" -eq 0 ]; then
+    echo "Inga hanterbara fönster hittades."
+    exit 1
+fi
+
+# Hämta skärmstorlek och dra av lite för panelen (marginal)
+screen_width=$(xdotool getdisplaygeometry | awk '{print $1}')
+screen_height=$(xdotool getdisplaygeometry | awk '{print $2}')
+usable_height=$((screen_height - 40)) # Justera 40 om din panel är tjockare
+
+# Placera fönstren
+width=$((screen_width / count))
+current_x=0
+
+for win in $windows; do
+    # Ta bort maximering om fönstret är maximerat (annars kan det inte flyttas)
+    xdotool windowactivate "$win"
+    wmctrl -i -r "$win" -b remove,maximized_vert,maximized_horz 2>/dev/null
+    
+    # Flytta och ändra storlek
+    xdotool windowsize "$win" "$width" "$usable_height"
+    xdotool windowmove "$win" "$current_x" 30 # 30px ner för att inte hamna under panelen
+    current_x=$((current_x + width))
+done

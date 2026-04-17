@@ -2,6 +2,37 @@
        ALINA ARCH LIVECD - CHANGELOG
 ==================================================
 
+VERSION: 2.0.2
+DATUM: 2026-04-17
+STATUS: Stabil / Produktionsklar
+
+NYHETER & FÖRBÄTTRINGAR:
+-----------------------
+1. arrange (Version 2.0.2)
+   - Introducerar stabil fönsterhantering (tiling).
+   - Filtrerar bort Xfce-skrivbordet och panelen för att undvika desktop-kaos.
+   - Tvingar maximerade fönster att återgå till normalt läge före flytt.
+
+2. xdotool & wmctrl (Nya paket)
+   - Tillagda för att möjliggöra avancerad fönsterhantering och skriptstöd.
+
+3. Systemstabilitet & Optimeringar
+   - Verifierat att 'snap' och 'occt-report' fungerar sömlöst med det nya 
+     fönsterupplägget.
+   - Inaktiverat OCCT:s uppdateringsnotiser permanent genom att lägga till 
+     flagg-filen '/opt/occt/disable_update' i airootfs. Detta ger en renare 
+     och snabbare start av stresstestet.
+
+--------------------------------------------------
+KONTAKT: Ralf R.
+E-POST: ralf.rangedahl@alina.se
+VERSION 2.0.2 - Alina Arch Diagnostics
+--------------------------------------------------
+
+==================================================
+       ALINA ARCH LIVECD - CHANGELOG
+==================================================
+
 VERSION: 2.0.1
 DATUM: 2026-04-08
 STATUS: Stabil / Produktionsklar
