@@ -1,0 +1,87 @@
+#!/bin/bash
+# ==============================================================================
+# Script:      menu
+# Description: Interactive main menu and session initialization for Alina Diagnostics.
+# Author:      Ralf R. (ralf.rangedahl@alina.se)
+# Version:     2.0.3
+# Date:        2026-04-21
+# ==============================================================================
+
+# Fetch the active IP address
+IP_ADDR=$(ip -br -4 addr show | grep -v "lo" | awk '{print $3}' | cut -d/ -f1 | head -n 1)
+if [ -z "$IP_ADDR" ]; then IP_ADDR="Offline (No IP)"; fi
+
+# Prompt for Order Number if it doesn't exist
+if [ ! -f /tmp/alina_order ]; then
+    clear
+    echo "========================================"
+    echo "       Welcome to Alina Arch 2.0        "
+    echo "========================================"
+    echo " 🌐 Current IP: $IP_ADDR"
+    echo "========================================"
+    echo ""
+    read -p "Please enter the Order Number: " order_num
+    
+    if [ -z "$order_num" ]; then
+        echo "Error: Order number cannot be empty."
+        sleep 1
+        exec menu 
+    fi
+    echo "$order_num" > /tmp/alina_order
+fi
+
+# Load the order number
+ORDER_NUM=$(cat /tmp/alina_order)
+
+# ------------------------------------------
+# MAIN MENU LOOP
+# ------------------------------------------
+while true; do
+    clear
+    echo "========================================"
+    echo "       Welcome to Alina Arch 2.0        "
+    echo "========================================"
+    echo " 🌐 IP: $IP_ADDR  |  📦 Order: $ORDER_NUM"
+    echo "========================================"
+    echo "  1. 🖥️  Hardware Valuation (hardware)"
+    echo "  2. 💾 Mount HDD (hddmount)"
+    echo "  3. 🔐 BitLocker Unlock (bitlocker)"
+    echo "  4. 🩺 S.M.A.R.T Health Check (smart)"
+    echo "  5. 💽 Disk Backup (diskbackup)"
+    echo "  6. 🍏 Mount macOS Drive (macmount)"
+    echo "  7. 🍏 macOS Backup (macbackup)"
+    echo "  8. 🔥 OCCT Stress Test (occt-report)"
+    echo "  9. 🔥 FurMark 2 GPU Test (fm-report)"
+    echo " 10. 🔑 Windows Info & Keys (winver)"
+    echo " 11. 🔓 Reset Windows Password (ntpass)"
+    echo " ---------------------------------------"
+    echo " 12. 🔄 Change Order Number"
+    echo " 13. ❌ Exit to Terminal"
+    echo "========================================"
+    read -p "Select an option [1-13]: " choice
+
+    case $choice in
+        1) /usr/local/bin/hardware ;;
+        2) /usr/local/bin/hddmount ;;
+        3) /usr/local/bin/bitlocker ;;
+        4) /usr/local/bin/smart ;;
+        5) /usr/local/bin/diskbackup ;;
+        6) /usr/local/bin/macmount ;;
+        7) /usr/local/bin/macbackup ;;
+        8) /usr/local/bin/occt-report ;;
+        9) /usr/local/bin/fm-report ;;
+        10) /usr/local/bin/winver ;;
+        11) /usr/local/bin/ntpass ;;
+        12) rm -f /tmp/alina_order; exec menu ;;
+        13) clear; break ;;
+        *) echo "Invalid option!"; sleep 1 ;;
+    esac
+    
+    # Pause before redrawing the menu so they can read the script output
+    if [[ "$choice" -ge 1 && "$choice" -le 11 ]]; then
+        echo -e "\nPress Enter to return to the Main Menu..."
+        read -r
+    fi
+done# ==============================================================================
+# EOF - End of script
+# ==============================================================================

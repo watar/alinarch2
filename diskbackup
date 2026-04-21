@@ -1,152 +1,166 @@
 #!/bin/bash
+# ==============================================================================
+# Script:      diskbackup
+# Description: Safely copies user data from mounted Windows partitions to the backup server.
+# Author:      Ralf R. (ralf.rangedahl@alina.se)
+# Version:     2.0.3
+# Date:        2026-04-21
+# ==============================================================================
 
-clear
-echo "=================================================="
-echo " WINDOWS DISK BACKUP UTILITY"
-echo "=================================================="
+source /usr/local/bin/alina-env.sh
 
-# 1. Get order number or path
+# ==========================================
+# INITIALIZATION
+# ==========================================
+alina_header "💽 WINDOWS DISK BACKUP UTILITY"
+check_mount
+
+# 1. Get destination (Order Number)
 DEST_INPUT="$1"
 if [[ -z "$DEST_INPUT" ]]; then
-    read -r -p "Enter order number (or full path): " DEST_INPUT
-    if [[ -z "$DEST_INPUT" ]]; then
-        echo -e "\n❌ No target specified. Aborting."
-        exit 1
-    fi
+    get_order_num
+    DEST_INPUT="$ORDER_NUM"
 fi
 
-# 2. Create the destination
 if [[ "$DEST_INPUT" == /* ]]; then
     DEST="$DEST_INPUT"
 else
     DEST="/mnt/backupserver/$DEST_INPUT"
 fi
 
-echo -e "\nCreating backup folder on the server..."
+echo -e "\n${YELLOW}Creating backup folder on the server...${NC}"
 mkdir -p -v "$DEST"
 
-# Check free space on the server (after the folder is created!)
-echo -e "\nDisk space at destination:"
+echo -e "\n${WHITE}Disk space at destination:${NC}"
 df -h "$DEST"
 
-# 3. Security check for the source (Runs from current folder)
-SOURCE_DIR=$(pwd)
-echo -e "\n[ CHECKING PATHS ]"
-echo "From (Source): $SOURCE_DIR"
-echo "To (Server): $DEST"
+# ==========================================
+# 2. SELECT SOURCE
+# ==========================================
+echo -e "\n${CYAN}[ SELECT SOURCE DRIVE ]${NC}"
+echo -e "${WHITE}Which mounted disk do you want to back up?${NC}"
+echo "  1. /mnt/disk1"
+echo "  2. /mnt/disk2"
+echo "  3. /mnt/disk3"
+echo "  4. /mnt/disk4"
+echo "  5. Custom Path"
+echo "  6. Abort"
+echo "--------------------------------------------------"
+
+while true; do
+    read -p "Enter a number [1-6]: " choice
+    case $choice in
+        1) SRC_OPT="disk1"; break ;;
+        2) SRC_OPT="disk2"; break ;;
+        3) SRC_OPT="disk3"; break ;;
+        4) SRC_OPT="disk4"; break ;;
+        5) SRC_OPT="custom"; break ;;
+        6) 
+           echo -e "${YELLOW}Backup aborted.${NC}"
+           exit 0 
+           ;;
+        *) 
+           echo -e "${RED}Invalid option! Try again.${NC}" 
+           ;;
+    esac
+done
+
+if [[ "$SRC_OPT" == "custom" ]]; then
+    read -r -p "Enter full path to source folder: " SOURCE_DIR
+    if [[ ! -d "$SOURCE_DIR" ]]; then
+        echo -e "${RED}❌ Directory not found. Aborting.${NC}"
+        exit 1
+    fi
+else
+    SOURCE_DIR="/mnt/$SRC_OPT"
+    # Check if it's actually mounted to prevent backing up an empty folder
+    if ! mountpoint -q "$SOURCE_DIR"; then
+        echo -e "${RED}⚠️ WARNING: $SOURCE_DIR does not appear to be mounted!${NC}"
+        read -r -p "Are you sure you want to back up an unmounted folder? (y/N): " conf
+        if [[ "${conf,,}" != "y" ]]; then 
+            echo -e "${YELLOW}Aborting.${NC}"
+            exit 1
+        fi
+    fi
+fi
+
+# Navigate to the chosen folder so the rsync command (which uses '.') works perfectly
+cd "$SOURCE_DIR" || { echo -e "${RED}❌ Failed to access $SOURCE_DIR${NC}"; exit 1; }
+
+echo -e "\n${CYAN}[ READY TO BACKUP ]${NC}"
+echo -e "From (Source): ${WHITE}$SOURCE_DIR${NC}"
+echo -e "To (Server): ${WHITE}$DEST${NC}"
 
 if [[ "$SOURCE_DIR" == "/" ]] || [[ "$SOURCE_DIR" == "/root" ]]; then
-    echo -e "\n❌ WARNING: You are in the LiveCD root folder!"
-    echo "You must navigate to the customer's mounted disk (e.g., cd /mnt/disk1) before running the backup."
+    echo -e "\n${RED}❌ WARNING: You are about to back up the LiveCD root folder!${NC}"
+    echo "Aborting for safety."
     exit 1
 fi
 
 echo -e "\nPress Enter to start the backup, or Ctrl+C to abort."
 read -r
 
-# 4. List of excluded files and folders (Easy to edit!)
+# ==========================================
+# 3. RSYNC COPY
+# ==========================================
 EXCLUDES=(
     # --- CORE SYSTEM FILES AND RECYCLE BINS ---
-    "[pP]age[fF]ile.sys"
-    "[hH]iber[fF]il.sys"
-    "[sS]wap[fF]ile.sys"
-    "RECYCLER"
-    "\$Recycle.Bin"
-    "\$RECYCLE.BIN"
-    "System Volume Information"
-    "Recovery"
+    "[pP]age[fF]ile.sys" "[hH]iber[fF]il.sys" "[sS]wap[fF]ile.sys" "RECYCLER" "\$Recycle.Bin" "\$RECYCLE.BIN" "System Volume Information" "Recovery"
 
     # --- OLD UPDATES AND INSTALLATIONS ---
-    "[wW][iI][nN][dD][oO][wW][sS]10[uU]pgrade"
-    "[wW][iI][nN][dD][oO][wW][sS]/\$NtUninstall*\$"
-    "[wW][iI][nN][dD][oO][wW][sS]/ServicePackFiles"
-    "[wW][iI][nN][dD][oO][wW][sS]/ie8updates"
-    "[wW][iI][nN][dD][oO][wW][sS]/KB9*.log"
-    "[wW][iI][nN][dD][oO][wW][sS]/[sS]ervicing"
-    "[wW][iI][nN][dD][oO][wW][sS]/[sS]ystem32/[rR]einstall[bB]ackups"
-    "SoftwareDistribution/Download"
-    "SoftwareDistribution/DataStore"
-    "\$hf_mig\$"
-    "*[cC]atroot"
+    "[wW][iI][nN][dD][oO][wW][sS]10[uU]pgrade" "[wW][iI][nN][dD][oO][wW][sS]/\$NtUninstall*\$" "[wW][iI][nN][dD][oO][wW][sS]/ServicePackFiles"
+    "[wW][iI][nN][dD][oO][wW][sS]/ie8updates" "[wW][iI][nN][dD][oO][wW][sS]/KB9*.log" "[wW][iI][nN][dD][oO][wW][sS]/[sS]ervicing"
+    "[wW][iI][nN][dD][oO][wW][sS]/[sS]ystem32/[rR]einstall[bB]ackups" "SoftwareDistribution/Download" "SoftwareDistribution/DataStore" "\$hf_mig\$" "*[cC]atroot"
 
     # --- SPECIFIC PROGRAMS & DRIVERS ---
-    "NVIDIA/DisplayDriver"
-    "Program Files/F-Secure Internet Security"
-    "ProgramData/Microsoft/OEMOffice14"
-    "ProgramData/Microsoft/Office14"
-    "ProgramData/Microsoft/OEMOffice15"
-    "ProgramData/Microsoft/Office15"
-    "ProgramData/Microsoft/OEMOffice16"
-    "ProgramData/Microsoft/Office16"
-    "ProgramData/Microsoft/ClickToRun"
-    "ProgramData/Microsoft/[wW]indows [dD]efender/[sS]cans"
+    "NVIDIA/DisplayDriver" "Program Files/F-Secure Internet Security" "ProgramData/Microsoft/OEMOffice14" "ProgramData/Microsoft/Office14"
+    "ProgramData/Microsoft/OEMOffice15" "ProgramData/Microsoft/Office15" "ProgramData/Microsoft/OEMOffice16" "ProgramData/Microsoft/Office16"
+    "ProgramData/Microsoft/ClickToRun" "ProgramData/Microsoft/[wW]indows [dD]efender/[sS]cans"
 
     # --- WINDOWS SYSTEM JUNK AND LOGS ---
-    "[wW][iI][nN][dD][oO][wW][sS]/[wW]in[sS]x[sS]"
-    "[wW][iI][nN][dD][oO][wW][sS]/[hH]elp"
-    "[wW][iI][nN][dD][oO][wW][sS]/SysWOW64"
-    "[wW][iI][nN][dD][oO][wW][sS]/Installer"
-    "[wW][iI][nN][dD][oO][wW][sS]/[sS]ystem32/dllcache"
-    "[wW][iI][nN][dD][oO][wW][sS]/[sS]ystem32/spool/drivers"
-    "[wW][iI][nN][dD][oO][wW][sS]/[sS]ystem32/wbem"
-    "[wW][iI][nN][dD][oO][wW][sS]/[tT]emp"
-    "[wW][iI][nN][dD][oO][wW][sS]/[dD]ebug"
-    "[wW][iI][nN][dD][oO][wW][sS]/[pP]refetch"
-    "[wW][iI][nN][dD][oO][wW][sS]/[mM]inidump"
-    "[wW][iI][nN][dD][oO][wW][sS]/MEMORY.DMP"
-    "*.dmp"
-    "[wW][iI][nN][dD][oO][wW][sS]/[sS]ystem32/winevt/[lL]ogs"
-    "[pP]erf[lL]ogs"
+    "[wW][iI][nN][dD][oO][wW][sS]/[wW]in[sS]x[sS]" "[wW][iI][nN][dD][oO][wW][sS]/[hH]elp" "[wW][iI][nN][dD][oO][wW][sS]/SysWOW64"
+    "[wW][iI][nN][dD][oO][wW][sS]/Installer" "[wW][iI][nN][dD][oO][wW][sS]/[sS]ystem32/dllcache" "[wW][iI][nN][dD][oO][wW][sS]/[sS]ystem32/spool/drivers"
+    "[wW][iI][nN][dD][oO][wW][sS]/[sS]ystem32/wbem" "[wW][iI][nN][dD][oO][wW][sS]/[tT]emp" "[wW][iI][nN][dD][oO][wW][sS]/[dD]ebug"
+    "[wW][iI][nN][dD][oO][wW][sS]/[pP]refetch" "[wW][iI][nN][dD][oO][wW][sS]/[mM]inidump" "[wW][iI][nN][dD][oO][wW][sS]/MEMORY.DMP" "*.dmp"
+    "[wW][iI][nN][dD][oO][wW][sS]/[sS]ystem32/winevt/[lL]ogs" "[pP]erf[lL]ogs"
 
     # --- USERS' TEMPORARY FILES ---
-    "*[aA]pp[dD]ata/[lL]ocal/[tT]emp"
-    "*[aA]pp[dD]ata/[lL]ocal/[dD]ownloaded [iI]nstallations"
-    "[tT]emporary [iI]nternet [fF]iles"
+    "*[aA]pp[dD]ata/[lL]ocal/[tT]emp" "*[aA]pp[dD]ata/[lL]ocal/[dD]ownloaded [iI]nstallations" "[tT]emporary [iI]nternet [fF]iles"
 
-    # --- BROWSER AND APP CACHES (UPDATED WITH DEEP SCAN) ---
-    "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/*[cC]ache*"
-    "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/CacheStorage"
-    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/*[cC]ache*"
-    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/CacheStorage"
-    "*[aA]pp[dD]ata/[lL]ocal/Mozilla/[fF]irefox/**/*[cC]ache*"
-    "*[aA]pp[dD]ata/[lL]ocal/Spotify/[sS]torage"
-    "*[aA]pp[dD]ata/[rR]oaming/discord/[cC]ache"
+    # --- BROWSER AND APP CACHES ---
+    "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/*[cC]ache*" "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/CacheStorage"
+    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/*[cC]ache*" "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/CacheStorage"
+    "*[aA]pp[dD]ata/[lL]ocal/Mozilla/[fF]irefox/**/*[cC]ache*" "*[aA]pp[dD]ata/[lL]ocal/Spotify/[sS]torage" "*[aA]pp[dD]ata/[rR]oaming/discord/[cC]ache"
 
     # --- MICROSOFT STORE & UWP CACHES ---
-    "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[lL]ocal[cC]ache"
-    "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[aA][cC]"
-    "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[tT]emp[sS]tate"
+    "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[lL]ocal[cC]ache" "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[aA][cC]" "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[tT]emp[sS]tate"
 
     # --- BUILT-IN MICROSOFT CACHES & TEAMS ---
-    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[wW]eb[cC]ache"
-    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[iI]Net[cC]ache"
-    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[eE]xplorer/thumbcache_*.db"
-    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[cC]ache"
+    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[wW]eb[cC]ache" "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[iI]Net[cC]ache"
+    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[eE]xplorer/thumbcache_*.db" "*[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[cC]ache"
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[aA]pp[cC]ache"
 
     # --- BLOATWARE (DELETE ENTIRE FOLDER) ---
-    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[cC]andy[cC]rush*"
-    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[kK]ing.com*"
-    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[bB]ubble[wW]itch*"
-    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[aA]ngry[bB]irds*"
-    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[tT]ik[tT]ok*"
+    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[cC]andy[cC]rush*" "*[aA]pp[dD]ata/[lL]ocal/Packages/*[kK]ing.com*" "*[aA]pp[dD]ata/[lL]ocal/Packages/*[bB]ubble[wW]itch*"
+    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[aA]ngry[bB]irds*" "*[aA]pp[dD]ata/[lL]ocal/Packages/*[tT]ik[tT]ok*"
 )
 
-# Build the rsync flags dynamically from the array above
 RSYNC_EXCLUDES=()
 for e in "${EXCLUDES[@]}"; do
     RSYNC_EXCLUDES+=("--exclude=$e")
 done
 
-# 5. Run the optimized rsync copy
-echo -e "\n🚀 Starting file copy (This may take some time)...\n"
+echo -e "\n${YELLOW}🚀 Starting file copy (This may take some time)...${NC}\n"
 
 rsync -avuS --progress --numeric-ids \
       --no-owner --no-group --no-perms --chmod=u=rwX \
       "${RSYNC_EXCLUDES[@]}" \
       . "$DEST"
 
-echo -e "\n=================================================="
-echo "✅ Copy complete and permissions adjusted."
-echo "✅ Backup for '$DEST_INPUT' is finished."
-echo "=================================================="
+echo -e "\n${CYAN}==================================================${NC}"
+echo -e "${GREEN}✅ Copy complete and permissions adjusted.${NC}"
+echo -e "✅ Backup for '$DEST_INPUT' is finished."
+echo -e "${CYAN}==================================================${NC}"
+# ==============================================================================
+# EOF - End of script
+# ==============================================================================

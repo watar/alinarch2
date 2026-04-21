@@ -1,34 +1,30 @@
-#!/bin/bash  
+#!/bin/bash
+# ==============================================================================
+# Script:      hardware
+# Description: Generates a comprehensive hardware valuation report and system overview.
+# Author:      Ralf R. (ralf.rangedahl@alina.se)
+# Version:     2.0.3
+# Date:        2026-04-21
+# ==============================================================================
 
-# Set the log directory to the centralized reports folder
+source /usr/local/bin/alina-env.sh
+
+# ==========================================
+# INITIALIZATION
+# ==========================================
+alina_header "🖥️  HARDWARE VALUATION REPORT"
+check_mount
+get_order_num
+
 LOGDIR="/mnt/backupserver/__reports"
+mkdir -p "$LOGDIR" 2>/dev/null
+LOGFILE="$LOGDIR/${ORDER_NUM}_Hardware.log"
 
-clear
-
-# SECURITY CHECK: Make sure the server is actually mounted before continuing!
-if ! mountpoint -q /mnt/backupserver; then
-    echo "❌ ERROR: The backup server is not mounted at /mnt/backupserver."
-    echo "Check the network cable or run the mount script manually."
-    exit 1
-fi
-
-mkdir -p "$LOGDIR"
-
-echo "=================================================="
-echo " 🖥️  HARDWARE VALUATION REPORT"
-echo "=================================================="
-
-read -r -p $'\x0aEnter Order Number (ServiceNR):\n> ' nvn
-LOGFILE="$LOGDIR/${nvn}_Hardware.log"
-
-# Allow user to quit
-if [[ -z "$nvn" ]]; then exit 0; fi
-
-echo -e "\nGenerating report for $nvn. Please wait..."
+echo -e "\n${YELLOW}Generating report for $ORDER_NUM. Please wait...${NC}"
 
 {
     echo "================================================================================="
-    echo " VALUATION REPORT - ORDER NUMBER: $nvn"
+    echo " VALUATION REPORT - ORDER NUMBER: $ORDER_NUM"
     echo "================================================================================="
     
     echo -e "\n[ SERIAL NO / MODEL ]"
@@ -63,32 +59,28 @@ echo -e "\nGenerating report for $nvn. Please wait..."
 
 } > "$LOGFILE"
 
-echo " "
-echo "=================================================="
-echo " 💾 Found Storage Drives & SMART Analysis"
-echo "=================================================="
+echo -e "\n${CYAN}==================================================${NC}"
+echo -e "${WHITE} 💾 Found Storage Drives & SMART Analysis${NC}"
+echo -e "${CYAN}==================================================${NC}"
 
-# List physical internal drives (filtering out USB and Loop devices)
 lsblk -d -e 7 -o NAME,SIZE,MODEL,TRAN | grep -i -v -E 'usb'
-
-echo -e "\nFetching SMART data for all storage devices and saving to the log..."
 echo -e "\n[ SMART DATA ]" >> "$LOGFILE"
 
-# Loop through drives, skipping USBs so we don't SMART-check the LiveCD
 for DISK in $(lsblk -d -n -e 7 -o NAME,TRAN | awk '$2 != "usb" {print $1}'); do
-    
     if [[ "$DISK" == nvme* ]]; then
-        echo "Analyzing NVMe drive: $DISK..."
+        echo -e "Analyzing NVMe drive: ${WHITE}$DISK${NC}..."
         echo -e "\n--- SMART (NVME: $DISK) ---" >> "$LOGFILE"
         nvme smart-log "/dev/$DISK" | grep -i -E 'critical_warning|temp|available_spare|on_hours|shutdowns|media_errors' >> "$LOGFILE"
-        
     elif [[ "$DISK" == sd* || "$DISK" == hd* ]]; then
-        echo "Analyzing SATA drive: $DISK..."
+        echo -e "Analyzing SATA drive: ${WHITE}$DISK${NC}..."
         echo -e "\n--- SMART (S-ATA: $DISK) ---" >> "$LOGFILE"
         smartctl -a "/dev/$DISK" | grep -i -E 'raw_re|13|187|196|197|198|201|231|233|241|242' | awk '{print $1,$2,$10}' >> "$LOGFILE"
     fi
 done
 
-echo -e "\n✅ Report created! It is saved on the server as:"
-echo "${nvn}_Hardware.log"
-echo -e "Remember to stress test the computer (OCCT, FurMark2, Memtest)."
+echo -e "\n${GREEN}✅ Report created! Saved on the server as:${NC}"
+echo "$LOGFILE"
+echo -e "${YELLOW}Remember to stress test the computer (OCCT, FurMark2).${NC}"
+# ==============================================================================
+# EOF - End of script
+# ==============================================================================

@@ -1,57 +1,51 @@
 #!/bin/bash
+# ==============================================================================
+# Script:      winver
+# Description: Extracts the Windows version, product key, and OEM key from a mounted partition.
+# Author:      Ralf R. (ralf.rangedahl@alina.se)
+# Version:     2.0.3
+# Date:        2026-04-21
+# ==============================================================================
 
-# Script to read Windows version and Product Key offline
+source /usr/local/bin/alina-env.sh
 
-## Color Variables
-RED='\e[1;31m'
-GREEN='\e[1;32m'
-CYAN='\e[1;36m'
-WHITE='\e[1;37m'
-YELLOW='\e[1;33m'
-NC='\e[0m'
+# ==========================================
+# INITIALIZATION
+# ==========================================
+alina_header "🔑 WINDOWS INFO & KEY EXTRACTOR"
+check_mount
+get_order_num
 
-clear
 echo -e "${CYAN}==================================================${NC}"
-echo -e "${WHITE} 🔑 WINDOWS INFO & KEY EXTRACTOR${NC}"
-echo -e "${CYAN}==================================================${NC}"
-
-# Shows partitions, filtering out LiveCD's own drives
 lsblk -o NAME,FSTYPE,SIZE,MOUNTPOINT,MODEL -e 7 | grep -i -v -E "squashfs|iso9660|loop"
 echo ""
 
-read -r -p "Which partition is the customer's WINDOWS partition? (e.g. sda3 or nvme0n1p3): " SRC1_INPUT
-
-# Allow user to quit
+read -r -p "Which partition is the WINDOWS partition? (e.g. sda3 or nvme0n1p3): " SRC1_INPUT
 if [[ -z "$SRC1_INPUT" ]]; then exit 0; fi
 
-# Add /dev/ automatically if missing
 SRC1_INPUT=${SRC1_INPUT#/dev/}
 TARGET="/dev/$SRC1_INPUT"
 
-# Security check that the partition exists
 if [ ! -b "$TARGET" ]; then
     echo -e "${RED}❌ ERROR: Partition $TARGET not found.${NC}"
     exit 1
 fi
 
-# Security check for BitLocker
 if blkid "$TARGET" | grep -q "BitLocker"; then
     echo -e "\n${RED}❌ WARNING: The drive is BitLocker encrypted!${NC}"
     echo "You must run the 'bitlocker' script to unlock it before you can read files."
     exit 1
 fi
 
-# Create a temporary read-only folder
 MNT_PATH="/mnt/win_temp"
 mkdir -p "$MNT_PATH"
 
-echo -e "\n${WHITE}Mounting $TARGET (Read-Only)...${NC}"
+echo -e "\n${YELLOW}Mounting $TARGET (Read-Only)...${NC}"
 if ! mount -t ntfs-3g -o ro "$TARGET" "${MNT_PATH}"; then
     echo -e "${RED}❌ Could not mount the partition. Aborting.${NC}"
     exit 1
 fi
 
-# Find the SOFTWARE file regardless of folder capitalization
 SOFT_PATH=$(find "${MNT_PATH}" -maxdepth 4 -ipath "*/windows/system32/config/software" | head -n 1)
 
 if [[ -z "$SOFT_PATH" ]]; then
@@ -63,7 +57,6 @@ fi
 echo -e "${GREEN}✅ Found Windows Registry!${NC}\n"
 echo -e "${CYAN}---------------------------------------------------${NC}"
 
-# Read Windows Version
 PROD_NAME=$(hivexget "$SOFT_PATH" 'Microsoft\Windows NT\CurrentVersion' ProductName 2>/dev/null)
 DISP_VER=$(hivexget "$SOFT_PATH" 'Microsoft\Windows NT\CurrentVersion' DisplayVersion 2>/dev/null)
 BUILD=$(hivexget "$SOFT_PATH" 'Microsoft\Windows NT\CurrentVersion' CurrentBuild 2>/dev/null)
@@ -78,8 +71,6 @@ else
 fi
 
 echo ""
-
-# Read Product Key from Registry
 WIN_KEY=$(hivexget "$SOFT_PATH" 'Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform' BackupProductKeyDefault 2>/dev/null)
 
 echo -e "${WHITE}🔑 PRODUCT KEY (From Hard Drive):${NC}"
@@ -93,7 +84,6 @@ fi
 
 echo -e "${CYAN}---------------------------------------------------${NC}"
 
-# Check motherboard's built-in BIOS/UEFI key (OEM)
 echo -e "\n${WHITE}🔑 OEM KEY (Built into this computer's motherboard):${NC}"
 if [ -f /sys/firmware/acpi/tables/MSDM ]; then
     OEM_KEY=$(cat /sys/firmware/acpi/tables/MSDM | strings | tail -n 1)
@@ -106,44 +96,34 @@ fi
 echo -e "\n${WHITE}Unmounting the drive...${NC}"
 umount "${MNT_PATH}"
 
-# =========================================================================
-# REPORTING TO SERVER
-# =========================================================================
-echo -e "\n${CYAN}==================================================${NC}"
-read -r -p "Enter Order Number to save a report (or press Enter to skip): " ORDERNUMBER
+# ==========================================
+# SERVER EXPORT
+# ==========================================
+REPORT_DIR="/mnt/backupserver/__reports"
+mkdir -p "$REPORT_DIR" 2>/dev/null
+REPORT="${REPORT_DIR}/${ORDER_NUM}_Windows_Info.log"
 
-if [[ -n "$ORDERNUMBER" ]]; then
-    REPORT_DIR="/mnt/backupserver/__reports"
-    
-    # Ensure the folder exists
-    mkdir -p "$REPORT_DIR" 2>/dev/null
-    
-    REPORT="${REPORT_DIR}/${ORDERNUMBER}_Windows_Info.log"
-    
-    # Create a perfectly clean report file without bash color codes
-    {
-        echo "=================================================="
-        echo " WINDOWS INFORMATION REPORT"
-        echo " Order Number: $ORDERNUMBER"
-        echo " Date: $(date '+%Y-%m-%d %H:%M:%S')"
-        echo "=================================================="
-        echo ""
-        echo "[ WINDOWS VERSION ]"
-        echo "$INFO_OS"
-        echo ""
-        echo "[ PRODUCT KEY (HARD DRIVE) ]"
-        echo "$INFO_KEY"
-        echo ""
-        echo "[ OEM KEY (MOTHERBOARD) ]"
-        echo "$OEM_KEY"
-        echo ""
-        echo "=================================================="
-    } > "$REPORT"
-    
-    echo -e "${GREEN}✅ The report has been saved to the server as:${NC}"
-    echo "$REPORT"
-else
-    echo "No report was saved."
-fi
+{
+    echo "=================================================="
+    echo " WINDOWS INFORMATION REPORT"
+    echo " Order Number: $ORDER_NUM"
+    echo " Date: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "=================================================="
+    echo ""
+    echo "[ WINDOWS VERSION ]"
+    echo "$INFO_OS"
+    echo ""
+    echo "[ PRODUCT KEY (HARD DRIVE) ]"
+    echo "$INFO_KEY"
+    echo ""
+    echo "[ OEM KEY (MOTHERBOARD) ]"
+    echo "$OEM_KEY"
+    echo ""
+    echo "=================================================="
+} > "$REPORT"
 
-echo -e "${GREEN}✅ Done!${NC}"
+echo -e "\n${GREEN}✅ The report has been saved to the server as:${NC}"
+echo "$REPORT"
+# ==============================================================================
+# EOF - End of script
+# ==============================================================================

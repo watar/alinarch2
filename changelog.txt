@@ -2,6 +2,51 @@
        ALINA ARCH LIVECD - CHANGELOG
 ==================================================
 
+VERSION: 2.0.3
+DATUM: 2026-04-21
+STATUS: Stabil / Produktionsklar
+
+ÖVERGRIPANDE ÄNDRINGAR & MILJÖ:
+-----------------------
+- Introducerat 'alina-env.sh' som en centraliserad konfigurationsfil för färger, menyer, server-monteringskontroll och hantering av ordernummer.
+- Helt enhetlig design, layout och färgkodning har applicerats över samtliga skript via den nya standardmallen.
+- Lagt till ett standardiserat metadata-huvud (Beskrivning, Författare, Version, Datum) i alla 15+ skript.
+- Lagt till paketet 'noto-fonts-emoji' i byggmiljön för att säkerställa att ikoner och emojis renderas korrekt i terminalen.
+
+HUVUDMENY & AUTOSTART:
+-----------------------
+- 'set-order' har bytt namn till 'menu'.
+- 'menu' har fått ett komplett interaktivt gränssnitt (val 1-13) för snabb åtkomst till alla diagnostik- och hanteringsverktyg.
+- Konfigurerat ZSH (~/.zshrc) och XFCE autostart för att automatiskt lansera huvudmenyn så fort en tekniker öppnar terminalen.
+
+SKRIPT-UPPDATERINGAR:
+-----------------------
+1. diskbackup / macbackup
+   - Den gamla sökvägskontrollen (pwd) är ersatt med en smart och interaktiv siffermeny. Teknikern kan nu välja källdisk (disk1-disk4 eller anpassad sökväg) direkt i skriptet innan backup startar.
+
+2. hddmount / bitlocker / ntpass
+   - UX-uppdatering: Val av monteringsmål görs nu via en ren siffermeny (1-4 för disk1-disk4) för att matcha arbetsflödet i backup-skripten.
+
+3. arrange
+   - Översatt terminalutskrifter från svenska till engelska för att följa systemets globala språkstandard.
+   - Kopplad till den nya alina-env.sh mallen för färglagd output.
+
+4. Värd-skript (build-alina, backup-alina, test-alina)
+   - Utvecklingsskripten på värddatorn har uppdaterats med inbyggda färgpaletter och metadata-huvuden för ett mer professionellt utseende lokalt.
+
+5. Systemskript (backupserver_mount.sh, set-wallpaper.sh)
+   - Formaterade med den nya standardlayouten och loggningsfärger. backupserver_mount säkerställer nu att /mnt/backupserver alltid skapas innan montering på LiveCD:n.
+
+--------------------------------------------------
+KONTAKT: Ralf R.
+E-POST: ralf.rangedahl@alina.se
+VERSION 2.0.3 - Alina Arch Diagnostics
+--------------------------------------------------
+
+==================================================
+       ALINA ARCH LIVECD - CHANGELOG
+==================================================
+
 VERSION: 2.0.2
 DATUM: 2026-04-17
 STATUS: Stabil / Produktionsklar
@@ -64,30 +109,30 @@ SKRIPT-UPPDATERINGAR & NYHETER:
    - Flyttad till fast sökväg: /usr/local/bin/furmark2/.
    - Kör nu 10 minuters benchmark med automatisk loggning till servern.
 
-5. snap (Nytt skript) [cite: 88, 89]
-   - Möjliggör manuella skärmdumpar av valfria fönster eller ytor via 'scrot'. [cite: 91]
-   - Sparar filer med tidsstämpel för att undvika överskrivning. [cite: 91]
+5. snap (Nytt skript)
+   - Möjliggör manuella skärmdumpar av valfria fönster eller ytor via 'scrot'.
+   - Sparar filer med tidsstämpel för att undvika överskrivning.
 
 6. bitlocker (Översättning/Optimering)
    - Hela gränssnittet översatt till engelska.
    - Rensat promptar för att vara mer direkta.
 
-7. hddmount / macmount (Optimering) [cite: 14]
+7. hddmount / macmount (Optimering)
    - Integrerad logik för att automatiskt fixa NTFS-journaler och ta bort 'hiberfile'.
    - Förbättrad felhantering vid felaktiga partitionsnamn.
 
-8. diskbackup / macbackup (Optimering) [cite: 1, 9]
+8. diskbackup / macbackup (Optimering)
    - Ersätter behovet av 'userback'.
-   - Använder nu en inbyggd array för exkluderingar istället för extern textfil. [cite: 11]
-   - Rensar nu mer effektivt bort webbläsarcache och systembloat. [cite: 10, 11]
+   - Använder nu en inbyggd array för exkluderingar istället för extern textfil.
+   - Rensar nu mer effektivt bort webbläsarcache och systembloat.
 
-9. ntpass (Översättning) [cite: 27]
-   - Fullt översatt gränssnitt. [cite: 28]
-   - Lagt till BitLocker-varning om disken är låst vid start. [cite: 30]
+9. ntpass (Översättning)
+   - Fullt översatt gränssnitt.
+   - Lagt till BitLocker-varning om disken är låst vid start.
 
 BORTTAGNA SKRIPT (DEPRECATED):
 ------------------------------
-- userback: Pensionerat pga komplexitet och risk för dubbelkopiering. [cite: 43, 79]
+- userback: Pensionerat pga komplexitet och risk för dubbelkopiering.
 - fmstress / fmstress2: Ersatta av fm-report.
 
 --------------------------------------------------

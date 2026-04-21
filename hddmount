@@ -1,14 +1,24 @@
 #!/bin/bash
+# ==============================================================================
+# Script:      hddmount
+# Description: Universal disk mount utility for detecting, repairing, and safely mounting filesystems.
+# Author:      Ralf R. (ralf.rangedahl@alina.se)
+# Version:     2.0.3
+# Date:        2026-04-21
+# ==============================================================================
 
-clear
-echo "=================================================="
-echo " 💾 UNIVERSAL DISK MOUNT UTILITY"
-echo "=================================================="
+source /usr/local/bin/alina-env.sh
+
+# ==========================================
+# INITIALIZATION
+# ==========================================
+alina_header "💾 UNIVERSAL DISK MOUNT UTILITY"
 
 # Show disks and partitions, filter out the LiveCD and hidden loop devices
+echo -e "${WHITE}Available drives for mounting:${NC}"
 lsblk -o NAME,FSTYPE,SIZE,MOUNTPOINT,MODEL -e 7 | grep -i -v -E "squashfs|iso9660|loop"
 
-echo -e "\n--------------------------------------------------"
+echo -e "\n${CYAN}--------------------------------------------------${NC}"
 
 # Loop that prevents the script from crashing on typos
 while true; do
@@ -16,12 +26,12 @@ while true; do
     
     # Ability to abort smoothly
     if [[ "${SRC1_INPUT,,}" == "q" ]]; then
-        echo "Aborting mount."
+        echo -e "${YELLOW}Aborting mount.${NC}"
         exit 0
     fi
 
     if [[ -z "$SRC1_INPUT" ]]; then
-        echo "⚠️ You must specify a partition."
+        echo -e "${RED}⚠️  You must specify a partition.${NC}"
         continue
     fi
 
@@ -34,14 +44,14 @@ while true; do
 
     # Security check 1: Does the partition even exist?
     if [ ! -b "$SRC1" ]; then
-        echo "❌ ERROR: Partition $SRC1 not found. Check the spelling and try again."
+        echo -e "${RED}❌ ERROR: Partition $SRC1 not found. Check the spelling and try again.${NC}"
         continue
     fi
 
     # Security check 2: Is the disk already mounted?
     if grep -qs "^$SRC1 " /proc/mounts; then
         MOUNTED_AT=$(grep -m1 "^$SRC1 " /proc/mounts | awk '{print $2}')
-        echo "⚠️ $SRC1 is already mounted at $MOUNTED_AT! Choose another partition."
+        echo -e "${YELLOW}⚠️  $SRC1 is already mounted at $MOUNTED_AT! Choose another partition.${NC}"
         continue
     fi
 
@@ -49,70 +59,75 @@ while true; do
     break
 done
 
-echo -e "\nWhere should it be mounted?"
-# Your original select menu preserved
-select DEST_FOLDER in "disk1" "disk2" "disk3" "disk4" "Quit"; do
-    case $DEST_FOLDER in
-        disk1|disk2|disk3|disk4)
-            DEST="/mnt/$DEST_FOLDER"
-            # Create the folder if it against all odds does not exist
-            mkdir -p "$DEST"
-            break
-            ;;
-        Quit)
-            exit 0
-            ;;
-        *)
-            echo "Invalid choice, try again."
-            ;;
+echo -e "\n${WHITE}Where should it be mounted?${NC}"
+echo "  1) /mnt/disk1"
+echo "  2) /mnt/disk2"
+echo "  3) /mnt/disk3"
+echo "  4) /mnt/disk4"
+echo "  5) Abort"
+echo "--------------------------------------------------"
+while true; do
+    read -r -p "Enter a number [1-5]: " DEST_CHOICE
+    case $DEST_CHOICE in
+        1) DEST="/mnt/disk1"; break ;;
+        2) DEST="/mnt/disk2"; break ;;
+        3) DEST="/mnt/disk3"; break ;;
+        4) DEST="/mnt/disk4"; break ;;
+        5) echo -e "${YELLOW}Aborting.${NC}"; exit 0 ;;
+        *) echo -e "${RED}❌ Invalid choice. Try again.${NC}" ;;
     esac
 done
 
-echo -e "\n=================================================="
+mkdir -p "$DEST"
+
+echo -e "\n${CYAN}==================================================${NC}"
 
 # Identify the file system automatically
 FSTYPE=$(blkid -s TYPE -o value "$SRC1")
-echo "🔍 Discovered file system: ${FSTYPE:-Unknown/Encrypted}"
+echo -e "${WHITE}🔍 Discovered file system:${NC} ${YELLOW}${FSTYPE:-Unknown/Encrypted}${NC}"
 
 # Choose mounting method based on file system
 case "${FSTYPE,,}" in
     ntfs)
-        echo "🛠️ Repairing NTFS journal (ntfsfix)..."
+        echo -e "${YELLOW}🛠️  Repairing NTFS journal (ntfsfix)...${NC}"
         ntfsfix "$SRC1"
-        echo "🚀 Mounting NTFS and clearing hibernation file (hiberfile)..."
+        echo -e "${YELLOW}🚀 Mounting NTFS and clearing hibernation file (hiberfile)...${NC}"
         mount -t ntfs-3g "$SRC1" "$DEST" -o remove_hiberfile
         ;;
     vfat|fat16|fat32|exfat)
-        echo "🚀 Mounting FAT/exFAT file system..."
+        echo -e "${YELLOW}🚀 Mounting FAT/exFAT file system...${NC}"
         # Allows read/write permissions for all users for smoother copying
         mount "$SRC1" "$DEST" -o rw,umask=000
         ;;
     ext2|ext3|ext4|btrfs|xfs)
-        echo "🚀 Mounting Linux file system..."
+        echo -e "${YELLOW}🚀 Mounting Linux file system...${NC}"
         mount "$SRC1" "$DEST"
         ;;
     apfs)
-        echo "🍏 Mounting Apple APFS file system..."
+        echo -e "${YELLOW}🍏 Mounting Apple APFS file system...${NC}"
         apfs-fuse -o allow_other "$SRC1" "$DEST"
         ;;
     hfsplus)
-        echo "🍏 Mounting Apple HFS+ (Older Mac)..."
+        echo -e "${YELLOW}🍏 Mounting Apple HFS+ (Older Mac)...${NC}"
         mount -t hfsplus -o ro "$SRC1" "$DEST"
         ;;
     crypto_luks|bitlocker)
-        echo "🔒 WARNING: The disk appears to be encrypted ($FSTYPE)!"
-        echo "You must run the 'bitlocker' script instead to mount this disk directly."
+        echo -e "${RED}🔒 WARNING: The disk appears to be encrypted ($FSTYPE)!${NC}"
+        echo -e "You must run the 'bitlocker' script instead to mount this disk directly."
         exit 1
         ;;
     *)
-        echo "⚠️ Unknown file system. Trying standard mount..."
+        echo -e "${YELLOW}⚠️  Unknown file system. Trying standard mount...${NC}"
         mount "$SRC1" "$DEST"
         ;;
 esac
 
 # Confirm if the mount was successful
 if mountpoint -q "$DEST" || grep -qs "$DEST" /proc/mounts; then
-    echo -e "\n✅ DONE! $SRC1 is now mounted and ready to be explored at $DEST"
+    echo -e "\n${GREEN}✅ DONE! $SRC1 is now mounted and ready to be explored at $DEST${NC}"
 else
-    echo -e "\n❌ ERROR: Something went wrong when mounting $SRC1."
+    echo -e "\n${RED}❌ ERROR: Something went wrong when mounting $SRC1.${NC}"
 fi
+# ==============================================================================
+# EOF - End of script
+# ==============================================================================

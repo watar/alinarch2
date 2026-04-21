@@ -1,114 +1,134 @@
 #!/bin/bash
+# ==============================================================================
+# Script:      macbackup
+# Description: Safely copies user data from mounted macOS drives, excluding specific system folders.
+# Author:      Ralf R. (ralf.rangedahl@alina.se)
+# Version:     2.0.3
+# Date:        2026-04-21
+# ==============================================================================
 
-clear
-echo "=================================================="
-echo " 🍏 MACOS DISK BACKUP UTILITY"
-echo "=================================================="
+source /usr/local/bin/alina-env.sh
 
-# 1. Get order number or path
+# ==========================================
+# INITIALIZATION
+# ==========================================
+alina_header "🍏 MACOS DISK BACKUP UTILITY"
+check_mount
+
+# 1. Get destination (Order Number)
 DEST_INPUT="$1"
 if [[ -z "$DEST_INPUT" ]]; then
-    read -r -p "Enter order number (or full path): " DEST_INPUT
-    if [[ -z "$DEST_INPUT" ]]; then
-        echo -e "\n❌ No target specified. Aborting."
-        exit 1
-    fi
+    get_order_num
+    DEST_INPUT="$ORDER_NUM"
 fi
 
-# 2. Create the destination
 if [[ "$DEST_INPUT" == /* ]]; then
     DEST="$DEST_INPUT"
 else
     DEST="/mnt/backupserver/$DEST_INPUT"
 fi
 
-echo -e "\nCreating backup folder on the server..."
+echo -e "\n${YELLOW}Creating backup folder on the server...${NC}"
 mkdir -p -v "$DEST"
 
-# Check free space on the server
-echo -e "\nDisk space at destination:"
+echo -e "\n${WHITE}Disk space at destination:${NC}"
 df -h "$DEST"
 
-# 3. Security check for the source (Runs from current folder)
-SOURCE_DIR=$(pwd)
-echo -e "\n[ CHECKING PATHS ]"
-echo "From (Source): $SOURCE_DIR"
-echo "To (Server): $DEST"
+# ==========================================
+# 2. SELECT SOURCE
+# ==========================================
+echo -e "\n${CYAN}[ SELECT SOURCE DRIVE ]${NC}"
+echo -e "${WHITE}Which mounted disk do you want to back up?${NC}"
+echo "  1. /mnt/disk1"
+echo "  2. /mnt/disk2"
+echo "  3. /mnt/disk3"
+echo "  4. /mnt/disk4"
+echo "  5. Custom Path"
+echo "  6. Abort"
+echo "--------------------------------------------------"
+
+while true; do
+    read -p "Enter a number [1-6]: " choice
+    case $choice in
+        1) SRC_OPT="disk1"; break ;;
+        2) SRC_OPT="disk2"; break ;;
+        3) SRC_OPT="disk3"; break ;;
+        4) SRC_OPT="disk4"; break ;;
+        5) SRC_OPT="custom"; break ;;
+        6) 
+           echo -e "${YELLOW}Backup aborted.${NC}"
+           exit 0 
+           ;;
+        *) 
+           echo -e "${RED}Invalid option! Try again.${NC}" 
+           ;;
+    esac
+done
+
+if [[ "$SRC_OPT" == "custom" ]]; then
+    read -r -p "Enter full path to source folder: " SOURCE_DIR
+    if [[ ! -d "$SOURCE_DIR" ]]; then
+        echo -e "${RED}❌ Directory not found. Aborting.${NC}"
+        exit 1
+    fi
+else
+    SOURCE_DIR="/mnt/$SRC_OPT"
+    # Check if it's actually mounted to prevent backing up an empty folder
+    if ! mountpoint -q "$SOURCE_DIR"; then
+        echo -e "${RED}⚠️ WARNING: $SOURCE_DIR does not appear to be mounted!${NC}"
+        read -r -p "Are you sure you want to back up an unmounted folder? (y/N): " conf
+        if [[ "${conf,,}" != "y" ]]; then 
+            echo -e "${YELLOW}Aborting.${NC}"
+            exit 1
+        fi
+    fi
+fi
+
+# Navigate to the chosen folder so the rsync command (which uses '.') works perfectly
+cd "$SOURCE_DIR" || { echo -e "${RED}❌ Failed to access $SOURCE_DIR${NC}"; exit 1; }
+
+echo -e "\n${CYAN}[ READY TO BACKUP ]${NC}"
+echo -e "From (Source): ${WHITE}$SOURCE_DIR${NC}"
+echo -e "To (Server): ${WHITE}$DEST${NC}"
 
 if [[ "$SOURCE_DIR" == "/" ]] || [[ "$SOURCE_DIR" == "/root" ]]; then
-    echo -e "\n❌ WARNING: You are in the LiveCD root folder!"
-    echo "You must navigate to the mounted APFS disk (e.g., cd /mnt/disk1) before running the backup."
+    echo -e "\n${RED}❌ WARNING: You are about to back up the LiveCD root folder!${NC}"
+    echo "Aborting for safety."
     exit 1
 fi
 
 echo -e "\nPress Enter to start the backup, or Ctrl+C to abort."
 read -r
 
-# 4. List of excluded files and folders for macOS
+# ==========================================
+# 3. RSYNC COPY
+# ==========================================
 EXCLUDES=(
-    # --- MACOS SYSTEM FILES & INDEXING ---
-    ".Spotlight-V100"
-    ".fseventsd"
-    ".DocumentRevisions-V100"
-    ".vol"
-    ".PKInstallSandboxManager-SystemSoftware"
-    "cores"
-    "private/var/vm"      # Contains gigantic RAM and Sleep files
-    "private/var/folders" # System temporary folders
-
-    # --- RECYCLE BINS ---
-    ".Trashes"
-    ".Trash"
-    "Users/*/.Trash"
-
-    # --- MACOS OS FOLDER AND APPLICATIONS ---
-    # We exclude these to only save user data and save server space
-    "Applications"
-    "System"
-    "bin"
-    "sbin"
-    "usr"
-    "Network"
-
-    # --- SYSTEM CACHES AND LOGS ---
-    "Library/Caches"
-    "Library/Logs"
-
-    # --- USERS' CACHES & TEMPORARY FILES ---
-    "Users/*/Library/Caches"
-    "Users/*/Library/Logs"
-    "Users/*/Library/Containers/*/Data/Library/Caches"
-    "Users/*/Library/Saved Application State"
-    "Users/*/Library/Developer/Xcode/DerivedData" # Can take up tens of GB if the customer codes
-
-    # --- BROWSER CACHES ---
-    "Users/*/Library/Caches/Google/Chrome"
-    "Users/*/Library/Caches/com.apple.Safari"
-    "Users/*/Library/Caches/Mozilla/Firefox"
-
-    # --- UNNECESSARY METADATA FILES ---
-    ".DS_Store"
-    ".AppleDouble"
-    ".LSOverride"
-    "._*"
+    ".Spotlight-V100" ".fseventsd" ".DocumentRevisions-V100" ".vol" ".PKInstallSandboxManager-SystemSoftware" "cores" "private/var/vm" "private/var/folders"
+    ".Trashes" ".Trash" "Users/*/.Trash" "Applications" "System" "bin" "sbin" "usr" "Network"
+    "Library/Caches" "Library/Logs" "Users/*/Library/Caches" "Users/*/Library/Logs" "Users/*/Library/Containers/*/Data/Library/Caches"
+    "Users/*/Library/Saved Application State" "Users/*/Library/Developer/Xcode/DerivedData"
+    "Users/*/Library/Caches/Google/Chrome" "Users/*/Library/Caches/com.apple.Safari" "Users/*/Library/Caches/Mozilla/Firefox"
+    ".DS_Store" ".AppleDouble" ".LSOverride" "._*"
 )
 
-# Build the rsync flags dynamically from the array above
 RSYNC_EXCLUDES=()
 for e in "${EXCLUDES[@]}"; do
     RSYNC_EXCLUDES+=("--exclude=$e")
 done
 
-# 5. Run the optimized rsync copy
-echo -e "\n🚀 Starting file copy of macOS data (This may take some time)...\n"
+echo -e "\n${YELLOW}🚀 Starting file copy of macOS data (This may take some time)...${NC}\n"
 
-# Uses the same secure flags as the Windows script
+# Notice the "." at the end below. Because we did `cd "$SOURCE_DIR"`, it copies exactly what it should!
 rsync -avuS --progress --numeric-ids \
       --no-owner --no-group --no-perms --chmod=u=rwX \
       "${RSYNC_EXCLUDES[@]}" \
       . "$DEST"
 
-echo -e "\n=================================================="
-echo "✅ Copy complete and permissions adjusted."
-echo "✅ macOS Backup for '$DEST_INPUT' is finished."
-echo "=================================================="
+echo -e "\n${CYAN}==================================================${NC}"
+echo -e "${GREEN}✅ Copy complete and permissions adjusted.${NC}"
+echo -e "✅ macOS Backup for '$DEST_INPUT' is finished."
+echo -e "${CYAN}==================================================${NC}"
+# ==============================================================================
+# EOF - End of script
+# ==============================================================================

@@ -1,68 +1,103 @@
 #!/bin/bash
+# ==============================================================================
+# Script:      ntpass
+# Description: Repairs and mounts a Windows disk to reset or edit local user passwords via SAM file.
+# Author:      Ralf R. (ralf.rangedahl@alina.se)
+# Version:     2.0.3
+# Date:        2026-04-21
+# ==============================================================================
 
-# Simple script to nuke Windows passwords/enable or disable users with chntpw.
-clear
-echo -e "--- WINDOWS PASSWORD RECOVERY ---"
+source /usr/local/bin/alina-env.sh
 
-lsblk
-read -r -p $'\nWhich disk is the customer\'s WINDOWS disk?\n(e.g., sda3 or nvme0n1p3): ' SRC1
+# ==========================================
+# INITIALIZATION
+# ==========================================
+alina_header "🔓 WINDOWS PASSWORD RECOVERY"
+
+echo -e "${WHITE}Available drives:${NC}"
+lsblk -o NAME,FSTYPE,SIZE,MOUNTPOINT,MODEL -e 7 | grep -i -v -E "squashfs|iso9660|loop"
+
+echo -e "\n${CYAN}--------------------------------------------------${NC}"
+read -r -p "Which disk is the WINDOWS disk? (e.g., sda3 or nvme0n1p3): " SRC1_INPUT
+
+if [[ -z "$SRC1_INPUT" ]]; then
+    echo -e "${RED}❌ No partition entered. Aborting.${NC}"
+    exit 1
+fi
+
+if [[ "$SRC1_INPUT" != /dev/* ]]; then
+    SRC1="/dev/$SRC1_INPUT"
+else
+    SRC1="$SRC1_INPUT"
+fi
+
+if [ ! -b "$SRC1" ]; then
+    echo -e "${RED}❌ ERROR: Partition $SRC1 not found.${NC}"
+    exit 1
+fi
 
 # 1. Security check for BitLocker
-if blkid /dev/$SRC1 | grep -q "BitLocker"; then
-    echo -e "\n❌ WARNING: The disk is BitLocker encrypted!"
-    echo "You must unlock it manually with 'dislocker' before you can change passwords."
+if blkid "$SRC1" | grep -q "BitLocker"; then
+    echo -e "\n${RED}❌ WARNING: The disk is BitLocker encrypted!${NC}"
+    echo -e "You must unlock it manually with the 'bitlocker' script before you can change passwords."
     exit 1
 fi
 
-echo -e "\nWhere should the Windows disk be mounted?"
-
-# 2. Create a nice numbered menu with exact choices (disk1 - disk4)
-PS3=$'\nChoose a directory (type number 1-4): '
-
-select OPTION in "disk1" "disk2" "disk3" "disk4"; do
-    if [[ -n "$OPTION" ]]; then
-        MNT_PATH="/mnt/$OPTION"
-        
-        # Make sure the folder actually exists in /mnt
-        mkdir -p "$MNT_PATH"
-        break
-    else
-        echo "Invalid choice, try again."
-    fi
+echo -e "\n${WHITE}Where should the Windows disk be mounted?${NC}"
+echo "  1) /mnt/disk1"
+echo "  2) /mnt/disk2"
+echo "  3) /mnt/disk3"
+echo "  4) /mnt/disk4"
+echo "--------------------------------------------------"
+while true; do
+    read -r -p "Enter a number [1-4]: " OPTION
+    case $OPTION in
+        1) MNT_PATH="/mnt/disk1"; break ;;
+        2) MNT_PATH="/mnt/disk2"; break ;;
+        3) MNT_PATH="/mnt/disk3"; break ;;
+        4) MNT_PATH="/mnt/disk4"; break ;;
+        *) echo -e "${RED}❌ Invalid choice, try again.${NC}" ;;
+    esac
 done
 
-# 3. Try to mount the disk
-echo -e "\nTrying to repair and mount the disk to $MNT_PATH ..."
-ntfsfix /dev/$SRC1 > /dev/null 2>&1
+mkdir -p "$MNT_PATH"
 
-if ! mount -t ntfs-3g /dev/${SRC1} "${MNT_PATH}" -o remove_hiberfile; then
-    echo "❌ Could not mount the disk. Aborting."
+# 3. Try to repair and mount the disk
+echo -e "\n${YELLOW}Trying to repair and mount the disk to $MNT_PATH ...${NC}"
+ntfsfix "$SRC1" > /dev/null 2>&1
+
+if ! mount -t ntfs-3g "$SRC1" "${MNT_PATH}" -o remove_hiberfile; then
+    echo -e "${RED}❌ Could not mount the disk. Aborting.${NC}"
     exit 1
 fi
 
-# 4. Find the SAM file regardless of whether the folders have uppercase or lowercase letters
+# 4. Find the SAM file
 SAM_PATH=$(find "${MNT_PATH}" -maxdepth 4 -ipath "*/windows/system32/config/sam" | head -n 1)
 
 if [[ -z "$SAM_PATH" ]]; then
-    echo "❌ Could not find a SAM file. Are you sure this is the Windows disk?"
+    echo -e "${RED}❌ Could not find a SAM file. Are you sure this is the Windows disk?${NC}"
     umount "${MNT_PATH}"
     exit 1
 fi
 
-echo -e "\n✅ Found SAM file: $SAM_PATH\n"
+echo -e "\n${GREEN}✅ Found SAM file: $SAM_PATH${NC}\n"
 
-# Show users
+echo -e "${CYAN}--------------------------------------------------${NC}"
 chntpw -l "$SAM_PATH"
+echo -e "${CYAN}--------------------------------------------------${NC}"
 
-echo -e "\nWhich user do you want to edit?"
-echo "Tip: Enter the exact username, OR the hex code for the RID (e.g., 0x01f4 for Administrator)."
+echo -e "\n${WHITE}Which user do you want to edit?${NC}"
+echo -e "${YELLOW}Tip: Enter the exact username, OR the hex code for the RID (e.g., 0x01f4 for Administrator).${NC}"
 read -r -p "> " SamUser
 
-# Start chntpw
-chntpw -u "${SamUser}" "$SAM_PATH"
+if [[ -n "$SamUser" ]]; then
+    chntpw -u "${SamUser}" "$SAM_PATH"
+fi
 
-# 5. CRITICAL: Unmount to force Linux to write changes to the disk!
-echo -e "\nSafely unmounting the disk to save changes to the SAM file..."
+# 5. CRITICAL: Unmount to force Linux to write changes to the disk
+echo -e "\n${YELLOW}Safely unmounting the disk to save changes to the SAM file...${NC}"
 umount "${MNT_PATH}"
-echo "✅ Done! If no error messages appeared, you can now restart the computer."
-echo " "
+echo -e "${GREEN}✅ Done! If no error messages appeared, you can now restart the computer.${NC}\n"
+# ==============================================================================
+# EOF - End of script
+# ==============================================================================

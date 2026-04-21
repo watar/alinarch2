@@ -1,17 +1,30 @@
 #!/bin/bash
+# ==============================================================================
+# Script:      smart
+# Description: Performs S.M.A.R.T health checks on physical storage drives and logs the results.
+# Author:      Ralf R. (ralf.rangedahl@alina.se)
+# Version:     2.0.3
+# Date:        2026-04-21
+# ==============================================================================
 
-clear
-echo "=================================================="
-echo " --- BitLocker Mount Tool ---"
-echo "=================================================="
+source /usr/local/bin/alina-env.sh
+
+# ==========================================
+# INITIALIZATION
+# ==========================================
+alina_header "🔐 BITLOCKER MOUNT TOOL"
 
 # Show available partitions
-echo "Available partitions:"
+echo -e "${WHITE}Available partitions:${NC}"
 lsblk -o NAME,SIZE,TYPE,FSTYPE | grep -i "part"
 
-echo ""
-# Updated prompt: Only asks for the partition name (e.g., sda3)
+echo -e "\n${CYAN}--------------------------------------------------${NC}"
 read -r -p "Enter the partition to decrypt (e.g., sda3): " SRC_INPUT
+
+if [[ -z "$SRC_INPUT" ]]; then
+    echo -e "${RED}❌ No partition entered. Aborting.${NC}"
+    exit 1
+fi
 
 # Smart logic: Automatically add /dev/ if it is missing
 if [[ "$SRC_INPUT" == /dev/* ]]; then
@@ -22,27 +35,28 @@ fi
 
 # Check that the partition exists
 if [ ! -b "$SRC_PART" ]; then
-    echo "❌ Error: Partition $SRC_PART does not exist!"
+    echo -e "${RED}❌ Error: Partition $SRC_PART does not exist!${NC}"
     exit 1
 fi
 
-echo ""
-echo "Choose a mount destination:"
-echo "1) /mnt/disk1"
-echo "2) /mnt/disk2"
-echo "3) /mnt/disk3"
-echo "4) /mnt/disk4"
-read -r -p "#? " DEST_CHOICE
+echo -e "\n${WHITE}Choose a mount destination:${NC}"
+echo "  1) /mnt/disk1"
+echo "  2) /mnt/disk2"
+echo "  3) /mnt/disk3"
+echo "  4) /mnt/disk4"
+echo "--------------------------------------------------"
+while true; do
+    read -r -p "Enter a number [1-4]: " DEST_CHOICE
+    case $DEST_CHOICE in
+        1) DEST_MOUNT="/mnt/disk1"; break ;;
+        2) DEST_MOUNT="/mnt/disk2"; break ;;
+        3) DEST_MOUNT="/mnt/disk3"; break ;;
+        4) DEST_MOUNT="/mnt/disk4"; break ;;
+        *) echo -e "${RED}❌ Invalid choice. Try again.${NC}" ;;
+    esac
+done
 
-case $DEST_CHOICE in
-    1) DEST_MOUNT="/mnt/disk1" ;;
-    2) DEST_MOUNT="/mnt/disk2" ;;
-    3) DEST_MOUNT="/mnt/disk3" ;;
-    4) DEST_MOUNT="/mnt/disk4" ;;
-    *) echo "❌ Invalid choice."; exit 1 ;;
-esac
-
-echo "You selected $DEST_MOUNT"
+echo -e "${GREEN}You selected $DEST_MOUNT${NC}"
 
 # The hidden folder where dislocker creates its virtual file
 DECRYPT_DIR="/mnt/.dislocker"
@@ -56,34 +70,32 @@ if mountpoint -q "$DECRYPT_DIR"; then
     umount "$DECRYPT_DIR"
 fi
 
-echo ""
-# Asks directly for the Recovery Key (48 digits)
-# Removed the -s flag so the key is visible in plain text when typing/pasting
+echo -e "\n${CYAN}--------------------------------------------------${NC}"
 read -r -p "Enter BitLocker Recovery Key (48 digits): " BL_KEY
 echo ""
 
-echo ""
-echo "Step 1: Decrypting BitLocker volume ($SRC_PART)..."
-
-# Dislocker now always uses -p (for Recovery Keys)
+echo -e "${YELLOW}Step 1: Decrypting BitLocker volume ($SRC_PART)...${NC}"
 dislocker -V "$SRC_PART" -p"$BL_KEY" -- "$DECRYPT_DIR"
 
 # Check if decryption succeeded by looking for the file dislocker creates
 if [ ! -f "$DECRYPT_DIR/dislocker-file" ]; then
-    echo "❌ Decryption failed. Check your recovery key."
+    echo -e "${RED}❌ Decryption failed. Check your recovery key.${NC}"
     exit 1
 fi
 
-echo "Step 2: Mounting the decrypted file system..."
+echo -e "${YELLOW}Step 2: Mounting the decrypted file system...${NC}"
 # Mount the virtual ntfs file to the visible folder
 mount -o loop "$DECRYPT_DIR/dislocker-file" "$DEST_MOUNT"
 
 if [ $? -eq 0 ]; then
-    echo -e "\n=================================================="
-    echo "✅ Success! The drive is decrypted and mounted at $DEST_MOUNT"
-    echo "You can now browse the files or run your diskbackup script."
-    echo "=================================================="
+    echo -e "\n${CYAN}==================================================${NC}"
+    echo -e "${GREEN}✅ Success! The drive is decrypted and mounted at $DEST_MOUNT${NC}"
+    echo -e "You can now browse the files or run your diskbackup script."
+    echo -e "${CYAN}==================================================${NC}"
 else
-    echo "❌ Failed to mount the decrypted file system."
+    echo -e "${RED}❌ Failed to mount the decrypted file system.${NC}"
     exit 1
 fi
+# ==============================================================================
+# EOF - End of script
+# ==============================================================================
