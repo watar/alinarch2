@@ -81,6 +81,4 @@ done
 echo -e "\n${GREEN}✅ Report created! Saved on the server as:${NC}"
 echo "$LOGFILE"
 echo -e "${YELLOW}Remember to stress test the computer (OCCT, FurMark2).${NC}"
-# ==============================================================================
-# EOF - End of script
-# ==============================================================================
+# EOF

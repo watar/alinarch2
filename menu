@@ -20,12 +20,11 @@ if [ ! -f /tmp/alina_order ]; then
     echo " 🌐 Current IP: $IP_ADDR"
     echo "========================================"
     echo ""
-    read -p "Please enter the Order Number: " order_num
+    read -p "Please enter the Order Number (or press Enter to skip): " order_num
     
+    # If left blank, set it to "N/A" instead of throwing an error
     if [ -z "$order_num" ]; then
-        echo "Error: Order number cannot be empty."
-        sleep 1
-        exec menu 
+        order_num="No_Order"
     fi
     echo "$order_num" > /tmp/alina_order
 fi
@@ -45,9 +44,9 @@ while true; do
     echo "========================================"
     echo "  1. 🖥️  Hardware Valuation (hardware)"
     echo "  2. 💾 Mount HDD (hddmount)"
-    echo "  3. 🔐 BitLocker Unlock (bitlocker)"
+    echo "  3. 💽 Disk Backup (diskbackup)"
     echo "  4. 🩺 S.M.A.R.T Health Check (smart)"
-    echo "  5. 💽 Disk Backup (diskbackup)"
+    echo "  5. 🔐 BitLocker Unlock (bitlocker)"
     echo "  6. 🍏 Mount macOS Drive (macmount)"
     echo "  7. 🍏 macOS Backup (macbackup)"
     echo "  8. 🔥 OCCT Stress Test (occt-report)"
@@ -57,15 +56,17 @@ while true; do
     echo " ---------------------------------------"
     echo " 12. 🔄 Change Order Number"
     echo " 13. ❌ Exit to Terminal"
+    echo " 14. 🔄 Reboot System"
+    echo " 15. ⏻  Shutdown System"
     echo "========================================"
-    read -p "Select an option [1-13]: " choice
+    read -p "Select an option [1-15]: " choice
 
     case $choice in
         1) /usr/local/bin/hardware ;;
         2) /usr/local/bin/hddmount ;;
-        3) /usr/local/bin/bitlocker ;;
+        3) /usr/local/bin/diskbackup ;;
         4) /usr/local/bin/smart ;;
-        5) /usr/local/bin/diskbackup ;;
+        5) /usr/local/bin/bitlocker ;;
         6) /usr/local/bin/macmount ;;
         7) /usr/local/bin/macbackup ;;
         8) /usr/local/bin/occt-report ;;
@@ -74,6 +75,8 @@ while true; do
         11) /usr/local/bin/ntpass ;;
         12) rm -f /tmp/alina_order; exec menu ;;
         13) clear; break ;;
+        14) echo -e "\nRebooting system..."; reboot ;;
+        15) echo -e "\nShutting down..."; poweroff ;;
         *) echo "Invalid option!"; sleep 1 ;;
     esac
     
@@ -82,6 +85,6 @@ while true; do
         echo -e "\nPress Enter to return to the Main Menu..."
         read -r
     fi
-done# ==============================================================================
-# EOF - End of script
-# ==============================================================================
+done
+
+# EOF

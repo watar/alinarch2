@@ -36,18 +36,20 @@ check_mount() {
 # 4. GLOBAL ORDER LOGIC FUNCTION
 get_order_num() {
     if [ -f /tmp/alina_order ]; then
-        export ORDER_NUM=$(cat /tmp/alina_order)
-        echo -e "Using Global Order Number: ${GREEN}${ORDER_NUM}${NC}\n"
+        ORDER_NUM=$(cat /tmp/alina_order)
     else
-        read -r -p "Enter Order Number: " temp_order
-        if [[ -z "$temp_order" ]]; then
-            echo -e "${RED}❌ No Order Number entered. Aborting.${NC}"
-            exit 1
+        echo -e "${CYAN}--------------------------------------------------${NC}"
+        read -r -p "Enter Order Number (or press Enter to skip): " input_num
+        
+        if [[ -z "$input_num" ]]; then
+            ORDER_NUM="No_Order"
+        else
+            ORDER_NUM="$input_num"
         fi
-        echo "$temp_order" > /tmp/alina_order
-        export ORDER_NUM="$temp_order"
+        
+        echo "$ORDER_NUM" > /tmp/alina_order
+        echo -e "${GREEN}Using Global Order Number: $ORDER_NUM${NC}"
+        echo -e "${CYAN}--------------------------------------------------${NC}\n"
     fi
 }
-# ==============================================================================
-# EOF - End of script
-# ==============================================================================
+# EOF

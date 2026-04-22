@@ -10,14 +10,16 @@ STATUS: Stabil / Produktionsklar
 -----------------------
 - Introducerat 'alina-env.sh' som en centraliserad konfigurationsfil för färger, menyer, server-monteringskontroll och hantering av ordernummer.
 - Helt enhetlig design, layout och färgkodning har applicerats över samtliga skript via den nya standardmallen.
-- Lagt till ett standardiserat metadata-huvud (Beskrivning, Författare, Version, Datum) i alla 15+ skript.
+- Lagt till ett standardiserat metadata-huvud (Beskrivning, Författare, Version, Datum, samt EOF-markör) i alla skript.
 - Lagt till paketet 'noto-fonts-emoji' i byggmiljön för att säkerställa att ikoner och emojis renderas korrekt i terminalen.
 
-HUVUDMENY & AUTOSTART:
+HUVUDMENY & AUTOSTART ('menu'):
 -----------------------
-- 'set-order' har bytt namn till 'menu'.
-- 'menu' har fått ett komplett interaktivt gränssnitt (val 1-13) för snabb åtkomst till alla diagnostik- och hanteringsverktyg.
+- 'set-order' har bytt namn till 'menu' och fått ett komplett interaktivt gränssnitt för snabb åtkomst till alla diagnostik- och hanteringsverktyg.
 - Konfigurerat ZSH (~/.zshrc) och XFCE autostart för att automatiskt lansera huvudmenyn så fort en tekniker öppnar terminalen.
+- UX: Det är nu möjligt att lämna ordernumret tomt vid snabba ärenden (tryck bara Enter). Systemet sätter då ordernumret till "No_Order" för att förhindra kraschar.
+- UX: Menyn har omstrukturerats (Disk Backup är nu val 3, BitLocker val 5) för ett mer logiskt arbetsflöde.
+- Nya menyval: Lagt till dedikerade alternativ i slutet av menyn för att starta om (Reboot) eller stänga av (Shutdown) systemet.
 
 SKRIPT-UPPDATERINGAR:
 -----------------------
@@ -27,14 +29,20 @@ SKRIPT-UPPDATERINGAR:
 2. hddmount / bitlocker / ntpass
    - UX-uppdatering: Val av monteringsmål görs nu via en ren siffermeny (1-4 för disk1-disk4) för att matcha arbetsflödet i backup-skripten.
 
-3. arrange
+3. occt-report
+   - Buggfix: Tystat startkommandot för OCCT (>/dev/null 2>&1) så att bakgrundsvarningar om saknad hårdvara (t.ex. ZFS eller rsmi) inte blöder in i terminalens nedräkningstimer.
+
+4. fm-report
+   - Buggfix: FurMark 2 ignorerade ofta sin inbyggda timer på Linux. Testet körs nu via det inbyggda Linux-kommandot 'timeout 10m' för att garantera att det alltid stängs av och sparar resultatet efter exakt 10 minuter.
+
+5. arrange
    - Översatt terminalutskrifter från svenska till engelska för att följa systemets globala språkstandard.
    - Kopplad till den nya alina-env.sh mallen för färglagd output.
 
-4. Värd-skript (build-alina, backup-alina, test-alina)
+6. Värd-skript (build-alina, backup-alina, test-alina)
    - Utvecklingsskripten på värddatorn har uppdaterats med inbyggda färgpaletter och metadata-huvuden för ett mer professionellt utseende lokalt.
 
-5. Systemskript (backupserver_mount.sh, set-wallpaper.sh)
+7. Systemskript (backupserver_mount.sh, set-wallpaper.sh)
    - Formaterade med den nya standardlayouten och loggningsfärger. backupserver_mount säkerställer nu att /mnt/backupserver alltid skapas innan montering på LiveCD:n.
 
 --------------------------------------------------

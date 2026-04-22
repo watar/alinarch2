@@ -124,6 +124,4 @@ REPORT="${REPORT_DIR}/${ORDER_NUM}_Windows_Info.log"
 
 echo -e "\n${GREEN}✅ The report has been saved to the server as:${NC}"
 echo "$REPORT"
-# ==============================================================================
-# EOF - End of script
-# ==============================================================================
+# EOF

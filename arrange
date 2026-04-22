@@ -59,6 +59,4 @@ done
 echo -e "${GREEN}✅ Windows successfully arranged!${NC}"
 # Pause briefly so the user sees the success message if run from a terminal
 sleep 1
-# ==============================================================================
-# EOF - End of script
-# ==============================================================================
+# EOF

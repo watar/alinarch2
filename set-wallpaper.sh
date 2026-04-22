@@ -39,6 +39,4 @@ done
 echo -e "${GREEN}✅ Wallpaper applied successfully!${NC}"
 # Pause briefly so the user sees the success message if run manually from a terminal
 sleep 1
-# ==============================================================================
-# EOF - End of script
-# ==============================================================================
+# EOF

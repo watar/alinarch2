@@ -35,12 +35,12 @@ echo -e "Let the test finish! It will close automatically and save the result af
 echo -e "\nPress Enter to start."
 read -r
 
-/usr/local/bin/furmark2/furmark --demo furmark-vk --benchmark --max-time 600000 2>&1 | tee -a "$LOG_FILE"
+# Use Linux 'timeout' to forcefully kill the process after 10 minutes (10m) 
+# to bypass FurMark's buggy internal timers.
+timeout 10m /usr/local/bin/furmark2/furmark --demo furmark-vk --benchmark --max-time 600000 2>&1 | tee -a "$LOG_FILE"
 
 echo -e "\n${CYAN}==================================================${NC}"
 echo -e "${GREEN}✅ The test is complete!${NC}"
 echo -e "✅ The result has been saved on the server in: $LOG_FILE"
 echo -e "${CYAN}==================================================${NC}"
-# ==============================================================================
-# EOF - End of script
-# ==============================================================================
+# EOF

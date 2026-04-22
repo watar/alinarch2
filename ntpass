@@ -98,6 +98,4 @@ fi
 echo -e "\n${YELLOW}Safely unmounting the disk to save changes to the SAM file...${NC}"
 umount "${MNT_PATH}"
 echo -e "${GREEN}✅ Done! If no error messages appeared, you can now restart the computer.${NC}\n"
-# ==============================================================================
-# EOF - End of script
-# ==============================================================================
+# EOF

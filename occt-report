@@ -20,7 +20,8 @@ mkdir -p "$REPORT_DIR" 2>/dev/null
 FILE_PATH="${REPORT_DIR}/${ORDER_NUM}_OCCT_StressTest.png"
 
 echo -e "${YELLOW}Launching OCCT...${NC}"
-occt & 2>/dev/null
+# Redirects both standard output and error to null, then runs in the background
+occt >/dev/null 2>&1 &
 
 echo -e "\n${CYAN}==================================================${NC}"
 echo -e "${WHITE} ⏱️  START YOUR STRESS TEST NOW${NC}"
@@ -49,6 +50,4 @@ if [ -f "$FILE_PATH" ]; then
 else
     echo -e "\n${RED}❌ Error: Screenshot was cancelled or failed.${NC}"
 fi
-# ==============================================================================
-# EOF - End of script
-# ==============================================================================
+# EOF
