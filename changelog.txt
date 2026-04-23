@@ -1,6 +1,40 @@
 ==================================================
        ALINA ARCH LIVECD - CHANGELOG
 ==================================================
+KONTAKT: Ralf R.
+E-POST: ralf.rangedahl@alina.se
+==================================================
+
+VERSION: 2.0.5
+DATUM: 2026-04-22
+STATUS: Stabil / Produktionsklar
+
+SÄKERHETSKOPIERING ('diskbackup' & 'macbackup'):
+-----------------------
+- Ny interaktiv meny för DESTINATION: Tekniker kan nu välja att spara backupen lokalt (t.ex. till /mnt/disk4 eller en anpassad USB-sökväg) istället för att vara tvingade till backupservern över nätverket.
+- Uppdaterat arbetsflöde: Skripten frågar nu mer logiskt efter Käll-disk (Source) först, och därefter Destinations-disk (Target).
+- Smarta standardval: Siffermenyn för destination matchar diskarna direkt (1 för disk1, etc.). Val '0' (eller att bara trycka Enter) väljer automatiskt Backupservern som standard [DEFAULT].
+- Automatisk namngivning: Om en lokal disk/USB väljs som destination läggs prefixet "Backup_" automatiskt till framför ordernumret (t.ex. Backup_TESTRIGG12). På servern används fortfarande bara ordernumret.
+- Förbättrad säkerhet: Skriptet förhindrar nu aktivt att en tekniker råkar spara en backup inuti samma enhet som källan, vilket stoppar rsync från att fastna i en oändlig loop.
+
+SYSTEM & BYGGMILJÖ:
+-----------------------
+- Åtgärdat byggproblem relaterade till 'xz uncompress failed with error code 9' genom att säkerställa rensning av 'work'-katalogen före komprimering.
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+VERSION: 2.0.4
+DATUM: 2026-04-22
+STATUS: Stabil / Produktionsklar
+
+NÄTVERK & FILDELNING (NY FUNKTION):
+-----------------------
+- Implementerat automatisk nätverksdelning (Samba) av /mnt/disk1 till /mnt/disk4 direkt vid uppstart.
+- Delningen är helt lösenordsfri (guest account = nobody) för smidig åtkomst från teknikernas Windows-datorer via \\IP-ADRESS\disk1.
+- Konfigurerat resursen som strikt skrivskyddad (read-only) för att skydda kundens data från oavsiktliga ändringar.
+- Aktiverat 'smb.service' via systemd i byggmiljön för att alltid starta automatiskt.
+
+-------------------------------------------------------------------------------------------------------------------------------------------
 
 VERSION: 2.0.3
 DATUM: 2026-04-21
@@ -45,15 +79,7 @@ SKRIPT-UPPDATERINGAR:
 7. Systemskript (backupserver_mount.sh, set-wallpaper.sh)
    - Formaterade med den nya standardlayouten och loggningsfärger. backupserver_mount säkerställer nu att /mnt/backupserver alltid skapas innan montering på LiveCD:n.
 
---------------------------------------------------
-KONTAKT: Ralf R.
-E-POST: ralf.rangedahl@alina.se
-VERSION 2.0.3 - Alina Arch Diagnostics
---------------------------------------------------
-
-==================================================
-       ALINA ARCH LIVECD - CHANGELOG
-==================================================
+-------------------------------------------------------------------------------------------------------------------------------------------
 
 VERSION: 2.0.2
 DATUM: 2026-04-17
@@ -76,15 +102,7 @@ NYHETER & FÖRBÄTTRINGAR:
      flagg-filen '/opt/occt/disable_update' i airootfs. Detta ger en renare 
      och snabbare start av stresstestet.
 
---------------------------------------------------
-KONTAKT: Ralf R.
-E-POST: ralf.rangedahl@alina.se
-VERSION 2.0.2 - Alina Arch Diagnostics
---------------------------------------------------
-
-==================================================
-       ALINA ARCH LIVECD - CHANGELOG
-==================================================
+-------------------------------------------------------------------------------------------------------------------------------------------
 
 VERSION: 2.0.1
 DATUM: 2026-04-08
@@ -146,5 +164,4 @@ BORTTAGNA SKRIPT (DEPRECATED):
 --------------------------------------------------
 KONTAKT: Ralf R.
 E-POST: ralf.rangedahl@alina.se
-VERSION 2.0.1 - Alina Arch Diagnostics
 --------------------------------------------------
