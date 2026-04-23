@@ -1,0 +1,232 @@
+#!/bin/bash
+# ==============================================================================
+# Script:      userbackup
+# Description: Safely copies specific Windows User profiles, Bookmarks, and SPCS/SIE data.
+# Author:      Ralf R. (ralf.rangedahl@alina.se)
+# Version:     2.0.6 (Legacy Edition + Heavy Filters)
+# Date:        2026-04-23
+# ==============================================================================
+
+source /usr/local/bin/alina-env.sh
+
+# ==========================================
+# INITIALIZATION
+# ==========================================
+alina_header "👤 WINDOWS USER & SPCS BACKUP"
+check_mount
+
+# Get Order Number
+DEST_INPUT="$1"
+if [[ -z "$DEST_INPUT" ]]; then
+    get_order_num
+    DEST_INPUT="$ORDER_NUM"
+fi
+
+# ==========================================
+# 1. SELECT SOURCE DRIVE
+# ==========================================
+echo -e "\n${CYAN}[ SELECT SOURCE DRIVE ]${NC}"
+echo -e "${WHITE}Which mounted disk contains the User Profile?${NC}"
+echo "  1. /mnt/disk1"
+echo "  2. /mnt/disk2"
+echo "  3. /mnt/disk3"
+echo "  4. /mnt/disk4"
+echo "  5. Custom Path"
+echo "  6. Abort"
+echo "--------------------------------------------------"
+
+while true; do
+    read -p "Enter a number [1-6]: " choice
+    case $choice in
+        1) SRC_OPT="disk1"; break ;;
+        2) SRC_OPT="disk2"; break ;;
+        3) SRC_OPT="disk3"; break ;;
+        4) SRC_OPT="disk4"; break ;;
+        5) SRC_OPT="custom"; break ;;
+        6) echo -e "${YELLOW}Backup aborted.${NC}"; exit 0 ;;
+        *) echo -e "${RED}Invalid option! Try again.${NC}" ;;
+    esac
+done
+
+if [[ "$SRC_OPT" == "custom" ]]; then
+    read -r -p "Enter full path to source folder: " SOURCE_DIR
+    if [[ ! -d "$SOURCE_DIR" ]]; then
+        echo -e "${RED}❌ Directory not found. Aborting.${NC}"
+        exit 1
+    fi
+else
+    SOURCE_DIR="/mnt/$SRC_OPT"
+    if ! mountpoint -q "$SOURCE_DIR"; then
+        echo -e "${RED}⚠️ WARNING: $SOURCE_DIR does not appear to be mounted!${NC}"
+        read -r -p "Are you sure you want to proceed? (y/N): " conf
+        if [[ "${conf,,}" != "y" ]]; then exit 1; fi
+    fi
+fi
+
+# ==========================================
+# 2. SELECT USER PROFILE
+# ==========================================
+if [[ -d "$SOURCE_DIR/Users" ]]; then
+    USERS_BASE="$SOURCE_DIR/Users"
+elif [[ -d "$SOURCE_DIR/users" ]]; then
+    USERS_BASE="$SOURCE_DIR/users"
+else
+    echo -e "\n${RED}❌ ERROR: Could not find a 'Users' folder on $SOURCE_DIR!${NC}"
+    echo "Make sure this is a Windows OS drive."
+    exit 1
+fi
+
+echo -e "\n${CYAN}[ SELECT USER ]${NC}"
+echo -e "${WHITE}Available user profiles in $USERS_BASE:${NC}"
+echo "--------------------------------------------------"
+ls -1 "$USERS_BASE" | grep -v "desktop.ini" | grep -v "Public" | grep -v "Default"
+echo "--------------------------------------------------"
+read -r -p "Type the exact name of the user to backup: " USER_CHOICE
+
+BACKUP_TARGET="$USERS_BASE/$USER_CHOICE"
+if [[ ! -d "$BACKUP_TARGET" ]]; then
+    echo -e "${RED}❌ ERROR: User profile '$USER_CHOICE' not found!${NC}"
+    exit 1
+fi
+
+# ==========================================
+# 3. SELECT DESTINATION
+# ==========================================
+echo -e "\n${CYAN}[ SELECT DESTINATION ]${NC}"
+echo -e "${WHITE}Where do you want to save the data?${NC}"
+echo "  0. Backup Server (/mnt/backupserver) [DEFAULT]"
+echo "  1. /mnt/disk1"
+echo "  2. /mnt/disk2"
+echo "  3. /mnt/disk3"
+echo "  4. /mnt/disk4"
+echo "  5. Custom Path"
+echo "  6. Abort"
+echo "--------------------------------------------------"
+
+while true; do
+    read -p "Enter a number [0-6] (or press Enter for default): " dest_choice
+    case $dest_choice in
+        0|"") BASE_DEST="/mnt/backupserver"; dest_choice="0"; break ;;
+        1) BASE_DEST="/mnt/disk1"; break ;;
+        2) BASE_DEST="/mnt/disk2"; break ;;
+        3) BASE_DEST="/mnt/disk3"; break ;;
+        4) BASE_DEST="/mnt/disk4"; break ;;
+        5) 
+           read -r -p "Enter full path to destination folder: " BASE_DEST
+           BASE_DEST="${BASE_DEST%/}"
+           break ;;
+        6) echo -e "${YELLOW}Backup aborted.${NC}"; exit 0 ;;
+        *) echo -e "${RED}Invalid option! Try again.${NC}" ;;
+    esac
+done
+
+if [[ "$DEST_INPUT" == /* ]]; then
+    DEST="$DEST_INPUT/$USER_CHOICE"
+    DEST_BASE="$DEST_INPUT"
+elif [[ "$dest_choice" == "0" ]]; then
+    DEST="${BASE_DEST}/${DEST_INPUT}/${USER_CHOICE}"
+    DEST_BASE="${BASE_DEST}/${DEST_INPUT}"
+else
+    DEST="${BASE_DEST}/Backup_${DEST_INPUT}/${USER_CHOICE}"
+    DEST_BASE="${BASE_DEST}/Backup_${DEST_INPUT}"
+fi
+
+# Safety check
+if [[ "$BASE_DEST" == "$BACKUP_TARGET" ]] || [[ "$BASE_DEST" == "$BACKUP_TARGET"/* ]]; then
+    echo -e "\n${RED}❌ ERROR: Destination cannot be the same as the Source!${NC}"
+    exit 1
+fi
+
+echo -e "\n${YELLOW}Creating backup folders...${NC}"
+mkdir -p -v "$DEST" || exit 1
+
+# ==========================================
+# 4. EXPLICIT BOOKMARK EXTRACTION (LEGACY FEATURE)
+# ==========================================
+echo -e "\n${CYAN}Extracting explicit Bookmarks...${NC}"
+
+# Chrome Bookmarks
+if [[ -f "$BACKUP_TARGET/AppData/Local/Google/Chrome/User Data/Default/Bookmarks" ]]; then
+    mkdir -p "$DEST/Chrome_bookmarks"
+    cp "$BACKUP_TARGET/AppData/Local/Google/Chrome/User Data/Default/Bookmarks" "$DEST/Chrome_bookmarks/"
+    echo -e "${GREEN}✔ Chrome bookmarks saved.${NC}"
+fi
+
+# Edge Bookmarks
+if [[ -f "$BACKUP_TARGET/AppData/Local/Microsoft/Edge/User Data/Default/Bookmarks" ]]; then
+    mkdir -p "$DEST/Edge_bookmarks"
+    cp "$BACKUP_TARGET/AppData/Local/Microsoft/Edge/User Data/Default/Bookmarks" "$DEST/Edge_bookmarks/"
+    echo -e "${GREEN}✔ Edge bookmarks saved.${NC}"
+fi
+
+# ==========================================
+# 5. SPCS & SIE ACCOUNTING DATA (LEGACY FEATURE)
+# ==========================================
+echo -e "\n${CYAN}Checking for Swedish Accounting Data (SPCS/SIE)...${NC}"
+SPCS_TARGET="$DEST_BASE/Accounting_Data_Extra"
+
+if [[ -d "$SOURCE_DIR/SIE" ]]; then
+    mkdir -p "$SPCS_TARGET"
+    echo "Copying C:\SIE..."
+    rsync -a "$SOURCE_DIR/SIE" "$SPCS_TARGET/"
+fi
+
+if [[ -d "$SOURCE_DIR/SPCSFiler" ]]; then
+    mkdir -p "$SPCS_TARGET"
+    echo "Copying C:\SPCSFiler..."
+    rsync -a "$SOURCE_DIR/SPCSFiler" "$SPCS_TARGET/"
+fi
+
+if [[ -d "$SOURCE_DIR/ProgramData/SPCS" ]]; then
+    mkdir -p "$SPCS_TARGET"
+    echo "Copying C:\ProgramData\SPCS..."
+    rsync -a "$SOURCE_DIR/ProgramData/SPCS" "$SPCS_TARGET/ProgramData_SPCS/"
+fi
+
+# ==========================================
+# 6. RSYNC COPY (USER PROFILE)
+# ==========================================
+EXCLUDES=(
+    # --- USER PROFILE SPECIFIC JUNK ---
+    "NTUSER.DAT" "ntuser.dat.LOG*" "ntuser.ini"
+    "MicrosoftEdgeBackups" "Cookies" "Recent" "PrintHood" "NetHood" "SendTo" "Application Data" "Local Settings"
+
+    # --- USERS' TEMPORARY FILES ---
+    "*[aA]pp[dD]ata/[lL]ocal/[tT]emp" "*[aA]pp[dD]ata/[lL]ocal/[dD]ownloaded [iI]nstallations" "[tT]emporary [iI]nternet [fF]iles"
+
+    # --- BROWSER AND APP CACHES ---
+    "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/*[cC]ache*" "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/CacheStorage"
+    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/*[cC]ache*" "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/CacheStorage"
+    "*[aA]pp[dD]ata/[lL]ocal/Mozilla/[fF]irefox/**/*[cC]ache*" "*[aA]pp[dD]ata/[lL]ocal/Spotify/[sS]torage" "*[aA]pp[dD]ata/[rR]oaming/discord/[cC]ache"
+
+    # --- MICROSOFT STORE & UWP CACHES ---
+    "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[lL]ocal[cC]ache" "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[aA][cC]" "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[tT]emp[sS]tate"
+
+    # --- BUILT-IN MICROSOFT CACHES & TEAMS ---
+    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[wW]eb[cC]ache" "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[iI]Net[cC]ache"
+    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[eE]xplorer/thumbcache_*.db" "*[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[cC]ache"
+    "*[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[aA]pp[cC]ache"
+
+    # --- BLOATWARE (DELETE ENTIRE FOLDER) ---
+    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[cC]andy[cC]rush*" "*[aA]pp[dD]ata/[lL]ocal/Packages/*[kK]ing.com*" "*[aA]pp[dD]ata/[lL]ocal/Packages/*[bB]ubble[wW]itch*"
+    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[aA]ngry[bB]irds*" "*[aA]pp[dD]ata/[lL]ocal/Packages/*[tT]ik[tT]ok*"
+)
+
+RSYNC_EXCLUDES=()
+for e in "${EXCLUDES[@]}"; do
+    RSYNC_EXCLUDES+=("--exclude=$e")
+done
+
+echo -e "\n${YELLOW}🚀 Starting main user profile copy (Excluding junk/caches)...${NC}\n"
+
+cd "$BACKUP_TARGET" || exit 1
+
+rsync -avuS --progress --numeric-ids \
+      --no-owner --no-group --no-perms --chmod=u=rwX \
+      "${RSYNC_EXCLUDES[@]}" \
+      . "$DEST"
+
+echo -e "\n${CYAN}==================================================${NC}"
+echo -e "${GREEN}✅ User backup for '$USER_CHOICE' is finished.${NC}"
+echo -e "${CYAN}==================================================${NC}"
+# EOF

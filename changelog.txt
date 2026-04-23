@@ -5,6 +5,25 @@ KONTAKT: Ralf R.
 E-POST: ralf.rangedahl@alina.se
 ==================================================
 
+VERSION: 2.0.6
+DATUM: 2026-04-23
+STATUS: Stabil / Produktionsklar
+
+NYA VERKTYG & FUNKTIONER ('userbackup'):
+-----------------------
+- Återinfört och moderniserat: Det klassiska 'userbackup'-skriptet är tillbaka, nu helt ombyggt för att matcha 2.0-standarden med samma interaktiva käll- och destinationsmenyer som diskbackup.
+- Bokföring (SPCS/SIE): Skriptet letar återigen automatiskt efter och kopierar svensk bokföringsdata (C:\SIE, C:\SPCSFiler, C:\ProgramData\SPCS) till en separat extra-mapp.
+- Bokmärken: Extraherar explicit bokmärken för Chrome och Edge och lägger dem i egna, lättillgängliga mappar i backupen.
+- Inbyggda filter: Den gamla externa '/root/exclude.txt' är nu borttagen. Skriptet har nu den tunga, inbyggda exkluderingslistan som automatiskt rensar bort AppData-cache, bloatware och temporära filer.
+
+HUVUDMENY ('menu'):
+-----------------------
+- Uppdaterat huvudmenyn till version 2.0.4.
+- Lade till 'User Backup (userbackup)' som val nummer 4, vilket samlar alla disk- och backupverktyg i en mer logisk följd.
+- Justerat de efterföljande menyvalen (nu upp till 16 val) och anpassat paus-logiken för de nya siffrorna.
+
+--------------------------------------------------
+
 VERSION: 2.0.5
 DATUM: 2026-04-22
 STATUS: Stabil / Produktionsklar

@@ -3,8 +3,8 @@
 # Script:      menu
 # Description: Interactive main menu and session initialization for Alina Diagnostics.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.3
-# Date:        2026-04-21
+# Version:     2.0.4
+# Date:        2026-04-23
 # ==============================================================================
 
 # Fetch the active IP address
@@ -45,43 +45,45 @@ while true; do
     echo "  1. 🖥️  Hardware Valuation (hardware)"
     echo "  2. 💾 Mount HDD (hddmount)"
     echo "  3. 💽 Disk Backup (diskbackup)"
-    echo "  4. 🩺 S.M.A.R.T Health Check (smart)"
-    echo "  5. 🔐 BitLocker Unlock (bitlocker)"
-    echo "  6. 🍏 Mount macOS Drive (macmount)"
-    echo "  7. 🍏 macOS Backup (macbackup)"
-    echo "  8. 🔥 OCCT Stress Test (occt-report)"
-    echo "  9. 🔥 FurMark 2 GPU Test (fm-report)"
-    echo " 10. 🔑 Windows Info & Keys (winver)"
-    echo " 11. 🔓 Reset Windows Password (ntpass)"
+    echo "  4. 👤 User Backup (userbackup)"
+    echo "  5. 🩺 S.M.A.R.T Health Check (smart)"
+    echo "  6. 🔐 BitLocker Unlock (bitlocker)"
+    echo "  7. 🍏 Mount macOS Drive (macmount)"
+    echo "  8. 🍏 macOS Backup (macbackup)"
+    echo "  9. 🔥 OCCT Stress Test (occt-report)"
+    echo " 10. 🔥 FurMark 2 GPU Test (fm-report)"
+    echo " 11. 🔑 Windows Info & Keys (winver)"
+    echo " 12. 🔓 Reset Windows Password (ntpass)"
     echo " ---------------------------------------"
-    echo " 12. 🔄 Change Order Number"
-    echo " 13. ❌ Exit to Terminal"
-    echo " 14. 🔄 Reboot System"
-    echo " 15. ⏻  Shutdown System"
+    echo " 13. 🔄 Change Order Number"
+    echo " 14. ❌ Exit to Terminal"
+    echo " 15. 🔄 Reboot System"
+    echo " 16. ⏻  Shutdown System"
     echo "========================================"
-    read -p "Select an option [1-15]: " choice
+    read -p "Select an option [1-16]: " choice
 
     case $choice in
         1) /usr/local/bin/hardware ;;
         2) /usr/local/bin/hddmount ;;
         3) /usr/local/bin/diskbackup ;;
-        4) /usr/local/bin/smart ;;
-        5) /usr/local/bin/bitlocker ;;
-        6) /usr/local/bin/macmount ;;
-        7) /usr/local/bin/macbackup ;;
-        8) /usr/local/bin/occt-report ;;
-        9) /usr/local/bin/fm-report ;;
-        10) /usr/local/bin/winver ;;
-        11) /usr/local/bin/ntpass ;;
-        12) rm -f /tmp/alina_order; exec menu ;;
-        13) clear; break ;;
-        14) echo -e "\nRebooting system..."; reboot ;;
-        15) echo -e "\nShutting down..."; poweroff ;;
+        4) /usr/local/bin/userbackup ;;
+        5) /usr/local/bin/smart ;;
+        6) /usr/local/bin/bitlocker ;;
+        7) /usr/local/bin/macmount ;;
+        8) /usr/local/bin/macbackup ;;
+        9) /usr/local/bin/occt-report ;;
+        10) /usr/local/bin/fm-report ;;
+        11) /usr/local/bin/winver ;;
+        12) /usr/local/bin/ntpass ;;
+        13) rm -f /tmp/alina_order; exec menu ;;
+        14) clear; break ;;
+        15) echo -e "\nRebooting system..."; reboot ;;
+        16) echo -e "\nShutting down..."; poweroff ;;
         *) echo "Invalid option!"; sleep 1 ;;
     esac
     
     # Pause before redrawing the menu so they can read the script output
-    if [[ "$choice" -ge 1 && "$choice" -le 11 ]]; then
+    if [[ "$choice" -ge 1 && "$choice" -le 12 ]]; then
         echo -e "\nPress Enter to return to the Main Menu..."
         read -r
     fi
