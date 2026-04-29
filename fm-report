@@ -3,44 +3,44 @@
 # Script:      fm-report
 # Description: Runs a FurMark 2 GPU burn-in test and logs the hardware performance output.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.3
-# Date:        2026-04-21
+# Version:     2.0.5
+# Date:        2026-04-29
 # ==============================================================================
 
-source /usr/local/bin/alina-env.sh
+source /usr/local/bin/alina-env.sh [cite: 10]
 
 # ==========================================
 # INITIALIZATION
 # ==========================================
-alina_header "🔥 GPU BURN-IN & STRESS TEST (FurMark 2)"
-check_mount
-get_order_num
+alina_header "🔥 GPU BURN-IN & STRESS TEST (FurMark 2)" [cite: 11]
+check_mount [cite: 11]
+get_order_num [cite: 11]
 
-DEST="/mnt/backupserver/värdering/$ORDER_NUM"
-mkdir -p "$DEST"
-LOG_FILE="$DEST/${ORDER_NUM}_FM2_Report.log"
+# Ny sökväg: Direkt i __reports utan undermapp
+DEST_DIR="/mnt/backupserver/__reports"
+mkdir -p "$DEST_DIR"
+LOG_FILE="$DEST_DIR/${ORDER_NUM}_FM2_Report.log"
 
 echo "==================================================" > "$LOG_FILE"
-echo " FurMark 2 Test Report - Order: $ORDER_NUM" >> "$LOG_FILE"
-echo " Date: $(date)" >> "$LOG_FILE"
-echo "==================================================" >> "$LOG_FILE"
+echo " FurMark 2 Test Report - Order: $ORDER_NUM" >> "$LOG_FILE" [cite: 11]
+echo " Date: $(date)" >> "$LOG_FILE" [cite: 11]
+echo "==================================================" >> "$LOG_FILE" [cite: 11]
 
-echo -e "\n[ GPU Information ]" >> "$LOG_FILE"
-lspci | grep -E "VGA|3D" >> "$LOG_FILE"
-echo "--------------------------------------------------" >> "$LOG_FILE"
+echo -e "\n[ GPU Information ]" >> "$LOG_FILE" [cite: 11]
+lspci | grep -E "VGA|3D" >> "$LOG_FILE" [cite: 11, 12]
+echo "--------------------------------------------------" >> "$LOG_FILE" [cite: 11]
 
-echo -e "\n${GREEN}📝 Report will be saved in: $LOG_FILE${NC}"
-echo -e "\n${YELLOW}🚀 Starting 10-minute Vulkan stress test...${NC}"
-echo -e "Let the test finish! It will close automatically and save the result after exactly 10 minutes."
-echo -e "\nPress Enter to start."
-read -r
+echo -e "\n${GREEN}📝 Report will be saved in: $LOG_FILE${NC}" [cite: 12]
+echo -e "\n${YELLOW}🚀 Starting 10-minute Vulkan stress test...${NC}" [cite: 12]
+echo -e "Let the test finish! It will close automatically and save the result after exactly 10 minutes." [cite: 12]
+echo -e "\nPress Enter to start." [cite: 13]
+read -r [cite: 13]
 
-# Use Linux 'timeout' to forcefully kill the process after 10 minutes (10m) 
-# to bypass FurMark's buggy internal timers.
-timeout 10m /usr/local/bin/furmark2/furmark --demo furmark-vk --benchmark --max-time 600000 2>&1 | tee -a "$LOG_FILE"
+# Använder timeout för att stänga FurMark efter 10 minuter (600 sekunder)
+timeout 10m /usr/local/bin/furmark2/furmark --demo furmark-vk --benchmark --max-time 600000 2>&1 | tee -a "$LOG_FILE" [cite: 14, 15]
 
-echo -e "\n${CYAN}==================================================${NC}"
-echo -e "${GREEN}✅ The test is complete!${NC}"
-echo -e "✅ The result has been saved on the server in: $LOG_FILE"
-echo -e "${CYAN}==================================================${NC}"
+echo -e "\n${CYAN}==================================================${NC}" [cite: 15]
+echo -e "${GREEN}✅ The test is complete!${NC}" [cite: 15]
+echo -e "✅ The result has been saved on the server in: $LOG_FILE" [cite: 15]
+echo -e "${CYAN}==================================================${NC}" [cite: 15]
 # EOF

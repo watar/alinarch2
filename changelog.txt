@@ -5,6 +5,14 @@ KONTAKT: Ralf R.
 E-POST: ralf.rangedahl@alina.se
 ==================================================
 
+VERSION: 2.0.7
+DATE: 2026-04-29
+AUTHOR: Ralf R. (ralf.rangedahl@alina.se)
+
+LATEST CHANGES:
+---------------
+- Fixed: fm-report now saves directly to /mnt/backupserver/__reports/ without subfolders.
+
 VERSION: 2.0.6
 DATUM: 2026-04-23
 STATUS: Stabil / Produktionsklar
