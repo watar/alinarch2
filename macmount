@@ -1,26 +1,119 @@
-##!/bin/bash
+#!/bin/bash
 # ==============================================================================
 # Script:      macmount
 # Description: Utility designed to securely mount macOS filesystems (APFS/HFS+).
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.3
-# Date:        2026-04-21
+# Version:     2.0.5
+# Date:        2026-05-25
 # ==============================================================================
 
-lsblk
+source /usr/local/bin/alina-env.sh
 
-read -r -p $'\x0aWhich disk should be mounted? ' SRC1
-echo -e "\nWhere should it be mounted?"
-select SRC2 in "disk1" "disk2" "disk3" "disk4"; do
-    case $SRC2 in
-	disk1 ) mount -t hfs /dev/${SRC1} /mnt/disk1; mount -t hfsplus /dev/${SRC1} /mnt/disk1; apfs-fuse -o allow_other /dev/${SRC1} /mnt/disk1; break
-          ;;
-	disk2 ) mount -t hfs /dev/${SRC1} /mnt/disk2; mount -t hfsplus /dev/${SRC1} /mnt/disk2; apfs-fuse -o allow_other /dev/${SRC1} /mnt/disk2; break
-          ;;
-	disk3 ) mount -t hfs /dev/${SRC1} /mnt/disk3; mount -t hfsplus /dev/${SRC1} /mnt/disk3; apfs-fuse -o allow_other /dev/${SRC1} /mnt/disk3; break
-          ;;
-	disk4 ) mount -t hfs /dev/${SRC1} /mnt/disk4; mount -t hfsplus /dev/${SRC1} /mnt/disk4; apfs-fuse -o allow_other /dev/${SRC1} /mnt/disk4; break
-          ;;
+# ==========================================
+# INITIALIZATION
+# ==========================================
+alina_header "MACOS DISK MOUNT UTILITY"
+
+# Display block storage configurations
+echo -e "${WHITE}Available drives for mounting:${NC}"
+lsblk -o NAME,FSTYPE,SIZE,MOUNTPOINT,MODEL -e 7 | grep -i -v -E "squashfs|iso9660|loop"
+
+echo -e "\n${CYAN}--------------------------------------------------${NC}"
+
+# Loop that prevents the script from crashing on typos
+while true; do
+    read -r -p "Which partition to mount? (e.g. sda1, nvme0n1p3 or 'q' to abort): " SRC1_INPUT
+    
+    # Ability to abort smoothly
+    if [[ "${SRC1_INPUT,,}" == "q" ]]; then
+        echo -e "${YELLOW}Aborting mount.${NC}"
+        exit 0
+    fi
+
+    if [[ -z "$SRC1_INPUT" ]]; then
+        echo -e "${RED}You must specify a partition.${NC}"
+        continue
+    fi
+
+    # Add /dev/ automatically if it is missing
+    if [[ "$SRC1_INPUT" != /dev/* ]]; then
+        SRC1="/dev/$SRC1_INPUT"
+    else
+        SRC1="$SRC1_INPUT"
+    fi
+
+    # Security check 1: Does the partition even exist?
+    if [ ! -b "$SRC1" ]; then
+        echo -e "${RED}ERROR: Partition $SRC1 not found. Check the spelling and try again.${NC}"
+        continue
+    fi
+
+    # Security check 2: Is the disk already mounted?
+    if grep -qs "^$SRC1 " /proc/mounts; then
+        MOUNTED_AT=$(grep -m1 "^$SRC1 " /proc/mounts | awk '{print $2}')
+        echo -e "${YELLOW}Warning: $SRC1 is already mounted at $MOUNTED_AT! Choose another partition.${NC}"
+        continue
+    fi
+
+    # If everything looks good, break the loop and continue
+    break
+done
+
+echo -e "\n${WHITE}Where should it be mounted?${NC}"
+echo "  1) disk1"
+echo "  2) disk2"
+echo "  3) disk3"
+echo "  4) disk4"
+echo "  5) Abort"
+echo "--------------------------------------------------"
+while true; do
+    read -r -p "Enter a number [1-5]: " DEST_CHOICE
+    case $DEST_CHOICE in
+        1) DEST="/mnt/disk1"; break ;;
+        2) DEST="/mnt/disk2"; break ;;
+        3) DEST="/mnt/disk3"; break ;;
+        4) DEST="/mnt/disk4"; break ;;
+        5) echo -e "${YELLOW}Aborting.${NC}"; exit 0 ;;
+        *) echo -e "${RED}Invalid choice. Try again.${NC}" ;;
     esac
 done
+
+mkdir -p "$DEST"
+
+echo -e "\n${CYAN}==================================================${NC}"
+
+# Identify the file system automatically
+FSTYPE=$(blkid -s TYPE -o value "$SRC1")
+echo -e "${WHITE}Discovered file system:${NC} ${YELLOW}${FSTYPE:-Unknown/Encrypted}${NC}"
+
+# Choose mounting method based on file system
+case "${FSTYPE,,}" in
+    apfs)
+        echo -e "${YELLOW}Mounting Apple APFS file system...${NC}"
+        apfs-fuse -o allow_other "$SRC1" "$DEST"
+        ;;
+    hfsplus)
+        echo -e "${YELLOW}Mounting Apple HFS+ (Older Mac)...${NC}"
+        mount -t hfsplus -o ro "$SRC1" "$DEST"
+        ;;
+    hfs)
+        echo -e "${YELLOW}Mounting legacy Apple HFS structures...${NC}"
+        mount -t hfs "$SRC1" "$DEST"
+        ;;
+    *)
+        echo -e "${YELLOW}Undetermined flag. Processing fallback mounts...${NC}"
+        if ! mount -t hfsplus -o ro "$SRC1" "$DEST" 2>/dev/null; then
+            if ! apfs-fuse -o allow_other "$SRC1" "$DEST" 2>/dev/null; then
+                mount -t hfs "$SRC1" "$DEST" 2>/dev/null
+            fi
+        fi
+        ;;
+esac
+
+# Confirm if the mount was successful
+if mountpoint -q "$DEST" || grep -qs "$DEST" /proc/mounts; then
+    echo -e "\n${GREEN}DONE! $SRC1 is now mounted and ready to be explored at $DEST${NC}"
+else
+    echo -e "\n${RED}ERROR: Something went wrong when mounting $SRC1.${NC}"
+fi
 # EOF

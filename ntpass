@@ -3,8 +3,8 @@
 # Script:      ntpass
 # Description: Repairs and mounts a Windows disk to reset or edit local user passwords via SAM file.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.3
-# Date:        2026-04-21
+# Version:     2.0.4
+# Date:        2026-05-25
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -12,7 +12,7 @@ source /usr/local/bin/alina-env.sh
 # ==========================================
 # INITIALIZATION
 # ==========================================
-alina_header "🔓 WINDOWS PASSWORD RECOVERY"
+alina_header "WINDOWS PASSWORD RECOVERY"
 
 echo -e "${WHITE}Available drives:${NC}"
 lsblk -o NAME,FSTYPE,SIZE,MOUNTPOINT,MODEL -e 7 | grep -i -v -E "squashfs|iso9660|loop"
@@ -21,7 +21,7 @@ echo -e "\n${CYAN}--------------------------------------------------${NC}"
 read -r -p "Which disk is the WINDOWS disk? (e.g., sda3 or nvme0n1p3): " SRC1_INPUT
 
 if [[ -z "$SRC1_INPUT" ]]; then
-    echo -e "${RED}❌ No partition entered. Aborting.${NC}"
+    echo -e "${RED}No partition entered. Aborting.${NC}"
     exit 1
 fi
 
@@ -32,22 +32,22 @@ else
 fi
 
 if [ ! -b "$SRC1" ]; then
-    echo -e "${RED}❌ ERROR: Partition $SRC1 not found.${NC}"
+    echo -e "${RED}ERROR: Partition $SRC1 not found.${NC}"
     exit 1
 fi
 
 # 1. Security check for BitLocker
 if blkid "$SRC1" | grep -q "BitLocker"; then
-    echo -e "\n${RED}❌ WARNING: The disk is BitLocker encrypted!${NC}"
+    echo -e "\n${RED}WARNING: The disk is BitLocker encrypted!${NC}"
     echo -e "You must unlock it manually with the 'bitlocker' script before you can change passwords."
     exit 1
 fi
 
 echo -e "\n${WHITE}Where should the Windows disk be mounted?${NC}"
-echo "  1) /mnt/disk1"
-echo "  2) /mnt/disk2"
-echo "  3) /mnt/disk3"
-echo "  4) /mnt/disk4"
+echo "  1) disk1"
+echo "  2) disk2"
+echo "  3) disk3"
+echo "  4) disk4"
 echo "--------------------------------------------------"
 while true; do
     read -r -p "Enter a number [1-4]: " OPTION
@@ -56,7 +56,7 @@ while true; do
         2) MNT_PATH="/mnt/disk2"; break ;;
         3) MNT_PATH="/mnt/disk3"; break ;;
         4) MNT_PATH="/mnt/disk4"; break ;;
-        *) echo -e "${RED}❌ Invalid choice, try again.${NC}" ;;
+        *) echo -e "${RED}Invalid choice, try again.${NC}" ;;
     esac
 done
 
@@ -67,7 +67,7 @@ echo -e "\n${YELLOW}Trying to repair and mount the disk to $MNT_PATH ...${NC}"
 ntfsfix "$SRC1" > /dev/null 2>&1
 
 if ! mount -t ntfs-3g "$SRC1" "${MNT_PATH}" -o remove_hiberfile; then
-    echo -e "${RED}❌ Could not mount the disk. Aborting.${NC}"
+    echo -e "${RED}Could not mount the disk. Aborting.${NC}"
     exit 1
 fi
 
@@ -75,12 +75,12 @@ fi
 SAM_PATH=$(find "${MNT_PATH}" -maxdepth 4 -ipath "*/windows/system32/config/sam" | head -n 1)
 
 if [[ -z "$SAM_PATH" ]]; then
-    echo -e "${RED}❌ Could not find a SAM file. Are you sure this is the Windows disk?${NC}"
+    echo -e "${RED}Could not find a SAM file. Are you sure this is the Windows disk?${NC}"
     umount "${MNT_PATH}"
     exit 1
 fi
 
-echo -e "\n${GREEN}✅ Found SAM file: $SAM_PATH${NC}\n"
+echo -e "\n${GREEN}Found SAM file: $SAM_PATH${NC}\n"
 
 echo -e "${CYAN}--------------------------------------------------${NC}"
 chntpw -l "$SAM_PATH"
@@ -97,5 +97,5 @@ fi
 # 5. CRITICAL: Unmount to force Linux to write changes to the disk
 echo -e "\n${YELLOW}Safely unmounting the disk to save changes to the SAM file...${NC}"
 umount "${MNT_PATH}"
-echo -e "${GREEN}✅ Done! If no error messages appeared, you can now restart the computer.${NC}\n"
+echo -e "${GREEN}Done! If no error messages appeared, you can now restart the computer.${NC}\n"
 # EOF

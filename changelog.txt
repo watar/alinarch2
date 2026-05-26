@@ -5,6 +5,67 @@ KONTAKT: Ralf R.
 E-POST: ralf.rangedahl@alina.se
 ==================================================
 
+VERSION: 2.1.7
+DATE: 2026-05-26
+
+HUVUDMENY & AUTOSTART ('menu' & '.zshrc'):
+-----------------------
+- Kompakt layout: Tog bort tomrader och komprimerade alternativen så att menyn passar perfekt i ett standardstort XFCE-terminalfönster utan skrollning.
+- Smart diskfiltrering: SMART-kontrollen söker nu strikt efter fysiska SATA- och NVMe-enheter och ignorerar uttryckligen USB-minnen och virtuella LiveCD-enheter för att förhindra falska felmeddelanden.
+- Korrigerad avslutningslogik: Uppdaterade autostarten i .zshrc med en kontrollerad loop. Att välja alternativ 15 stänger nu menyn rent och lämnar teknikern i en aktiv terminal, istället för att stänga hela fönstret eller starta om menyn.
+
+SÄKERHETSKOPIERING ('diskbackup' & 'macbackup'):
+-----------------------
+- Enhetliga menyval: Ändrade käll- och destinationsalternativen från fullständiga sökvägar till korta alias (t.ex. 'disk1') för att matcha standarden i övriga verktyg.
+- Custom Path fix: Skripten respekterar nu den exakta sökvägen vid val av anpassad destination (val 5) och tvingar inte längre fram en extra "Backup_"-undermapp när data sparas på till exempel en extern USB-enhet.
+- Kodsanering: Rensade bort dolda metadata-taggar som orsakade syntaxfel.
+
+DISKHANTERING & SYSTEM ('hddmount' & 'bitlocker'):
+-----------------------
+- Enhetliga menyval: Uppdaterade monteringsmålen till det korta 'disk1'-formatet.
+- Kodsanering: Tog bort felaktiga systemtaggar som bröt sökkriterierna och orsakade kraschar vid start.
+
+NÄTVERK & MILJÖ ('deploy-iso'):
+-----------------------
+- deploy-iso: Uppdaterade Enköpings server-IP till det nya 10.150.20.80-subnätet.
+- deploy-iso: Lade till explicit SMB-autentisering (användare/lösenord) för Uppsala-servern för att åtgärda tysta monteringsfel.
+- deploy-iso: Införde en felspårningslista som ger en tydlig summering av exakt vilka servrar som lyckades respektive misslyckades vid uppladdning av ISO-filen.
+
+VERSION: 2.1.6
+DATE: 2026-05-25
+
+HUVUDMENY ('menu'):
+-----------------------
+- Kategoriserat menyupplägg: Strukturerat om huvudmenyn i logiska, uppgiftsbaserade block för att ge en bättre översikt (Hardware & Diagnostics, Disk Management & Backup, System Utilities och Session Management).
+- Skärmdiagnostik (Döda pixlar): Integrerat ett webbaserat verktyg för skärmtest kopplat direkt till 'https://deadpixeltest.org/', vilket lanseras som en isolerad bakgrundsprocess i webbläsaren.
+- Renare gränssnitt: Förenklat visningen av interna diskar till korta alias (t.ex. 'disk1') istället för fullständiga systemsökvägar (t.ex. '/mnt/disk1') för ökad läsbarhet.
+
+DIAGNOSTIKVERKTYG ('smart'):
+-----------------------
+- Isolerat server-offline läge: Skriptet verifierar nu nätverkssökvägar aktivt via 'mountpoint' innan körning, vilket förhindrar att skriptet kraschar om backupservern inte är monterad.
+- Dynamisk anslutningsprompt: Lagt till ett menyval vid start som låter tekniker antingen initiera nätverksmonteringen manuellt på begäran, eller fortsätta direkt med en lokal analys (endast skärmvisning).
+- Villkorlig loggning: Stänger automatiskt av filexporten till nätverket när skriptet körs i offline-läge för att eliminera skrivfel mot osynliga sökvägar.
+
+SÄKERHETSKOPIERING ('diskbackup' & 'userbackup'):
+-----------------------
+- Avancerad sökvägshantering: Skripten identifierar nu snedstreck ('/') i användarens inmatning. Om en tekniker anger en strukturerad undermapp (t.ex. 'EVN260561/Disk2') som anpassat mål, sparas data exakt på den angivna platsen utan att skriptet lägger till extra "Backup_"-prefix eller duplicerade katalogträd.
+- Tydligare destinationsval: Anpassat siffermenyn för sparmål till att matcha det nya, korta 'disk1'-'disk4'-formatet.
+
+DISKHANTERING ('macmount' & 'hddmount'):
+-----------------------
+- Enhetliga menyloopar: Ersatt gamla Bash-gränssnitt med standardiserade 'while true'- och 'case'-block för ett mer robust och enhetligt flöde i terminalen.
+- Sanering av partitionsnamn: Lagt till automatisk stränghantering som rensar bort oavsiktliga '/dev/'-prefix om en tekniker råkar skriva det vid val av disk.
+- Förenklade gränssnittsalternativ: Uppdaterat monteringspunkterna i menyerna till korta enhetsnamn istället för fullständiga systemsökvägar.
+
+SYSTEM- OCH PRODUKTNYCKLAR ('winver' & 'ntpass' & 'bitlocker'):
+-----------------------
+- Standardisering av kodbas: Korrigerat och städat upp överlappande metadata-huvuden samt felaktiga beskrivningar i skriptfilerna.
+- Enhetliga monteringsmål: Uppdaterat monteringsmenyn i samtliga skript till det nya, strömlinjeformade 'disk1'-'disk4'-formatet för att matcha resten av systemmiljön.
+
+PRESTANDATESTER OCH SKÄRMDUMPAR ('fm-report' & 'occt-report' & 'snap'):
+-----------------------
+- Konsoliderad rapportlagring: Omdirigerat alla rapportgenereringar och skärmdumpar till att sparas centralt under '/mnt/backupserver/__reports/' utan att skapa fragmenterade underkataloger.
+
 VERSION: 2.0.7
 DATE: 2026-04-29
 AUTHOR: Ralf R. (ralf.rangedahl@alina.se)

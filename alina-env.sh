@@ -3,8 +3,8 @@
 # Script:      alina-env.sh
 # Description: Global environment variables and standard functions for Alina Arch.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.3
-# Date:        2026-04-21
+# Version:     2.0.4
+# Date:        2026-05-25
 # ==============================================================================
 
 # 1. UNIFIED COLOR PALETTE
@@ -27,7 +27,7 @@ alina_header() {
 # 3. SERVER CONNECTION CHECK FUNCTION
 check_mount() {
     if ! mountpoint -q /mnt/backupserver; then
-        echo -e "${RED}❌ ERROR: Backup server is not mounted at /mnt/backupserver.${NC}"
+        echo -e "${RED}ERROR: Backup server is not mounted at /mnt/backupserver.${NC}"
         echo -e "Please check the network connection and try again."
         exit 1
     fi

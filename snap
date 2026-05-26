@@ -3,14 +3,14 @@
 # Script:      snap
 # Description: Captures a screenshot of a selected window or area and exports it to the server.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.3
-# Date:        2026-04-21
+# Version:     2.0.4
+# Date:        2026-05-25
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
 
 # Call the standard functions
-alina_header "📸 SCREENSHOT TO SERVER"
+alina_header "SCREENSHOT TO SERVER"
 check_mount
 get_order_num
 
@@ -20,15 +20,15 @@ mkdir -p "$REPORT_DIR" 2>/dev/null
 
 FILE_PATH="${REPORT_DIR}/${ORDER_NUM}_Screenshot_$(date +%H%M%S).png"
 
-echo -e "${YELLOW}🖱️  Your mouse is now a crosshair!${NC}"
-echo -e "Click on the OCCT window (or drag a box) to take the screenshot..."
+echo -e "${YELLOW}Your mouse is now a crosshair!${NC}"
+echo -e "Click on the window (or drag a box) to take the screenshot..."
 
 scrot -s -d 1 "$FILE_PATH"
 
 if [ -f "$FILE_PATH" ]; then
-    echo -e "\n${GREEN}✅ Screenshot saved successfully!${NC}"
-    echo "📍 Saved to: $FILE_PATH"
+    echo -e "\n${GREEN}Screenshot saved successfully!${NC}"
+    echo "Saved to: $FILE_PATH"
 else
-    echo -e "\n${RED}❌ Error: Screenshot failed or was cancelled.${NC}"
+    echo -e "\n${RED}Error: Screenshot failed or was cancelled.${NC}"
 fi
 # EOF

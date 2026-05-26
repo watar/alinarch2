@@ -3,8 +3,8 @@
 # Script:      userbackup
 # Description: Safely copies specific Windows User profiles, Bookmarks, and SPCS/SIE data.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.6 (Legacy Edition + Heavy Filters)
-# Date:        2026-04-23
+# Version:     2.0.7
+# Date:        2026-05-25
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -12,7 +12,7 @@ source /usr/local/bin/alina-env.sh
 # ==========================================
 # INITIALIZATION
 # ==========================================
-alina_header "👤 WINDOWS USER & SPCS BACKUP"
+alina_header "WINDOWS USER & SPCS BACKUP"
 check_mount
 
 # Get Order Number
@@ -51,13 +51,13 @@ done
 if [[ "$SRC_OPT" == "custom" ]]; then
     read -r -p "Enter full path to source folder: " SOURCE_DIR
     if [[ ! -d "$SOURCE_DIR" ]]; then
-        echo -e "${RED}❌ Directory not found. Aborting.${NC}"
+        echo -e "${RED}Directory not found. Aborting.${NC}"
         exit 1
     fi
 else
     SOURCE_DIR="/mnt/$SRC_OPT"
     if ! mountpoint -q "$SOURCE_DIR"; then
-        echo -e "${RED}⚠️ WARNING: $SOURCE_DIR does not appear to be mounted!${NC}"
+        echo -e "${RED}WARNING: $SOURCE_DIR does not appear to be mounted!${NC}"
         read -r -p "Are you sure you want to proceed? (y/N): " conf
         if [[ "${conf,,}" != "y" ]]; then exit 1; fi
     fi
@@ -71,7 +71,7 @@ if [[ -d "$SOURCE_DIR/Users" ]]; then
 elif [[ -d "$SOURCE_DIR/users" ]]; then
     USERS_BASE="$SOURCE_DIR/users"
 else
-    echo -e "\n${RED}❌ ERROR: Could not find a 'Users' folder on $SOURCE_DIR!${NC}"
+    echo -e "\n${RED}ERROR: Could not find a 'Users' folder on $SOURCE_DIR!${NC}"
     echo "Make sure this is a Windows OS drive."
     exit 1
 fi
@@ -85,7 +85,7 @@ read -r -p "Type the exact name of the user to backup: " USER_CHOICE
 
 BACKUP_TARGET="$USERS_BASE/$USER_CHOICE"
 if [[ ! -d "$BACKUP_TARGET" ]]; then
-    echo -e "${RED}❌ ERROR: User profile '$USER_CHOICE' not found!${NC}"
+    echo -e "${RED}ERROR: User profile '$USER_CHOICE' not found!${NC}"
     exit 1
 fi
 
@@ -95,10 +95,10 @@ fi
 echo -e "\n${CYAN}[ SELECT DESTINATION ]${NC}"
 echo -e "${WHITE}Where do you want to save the data?${NC}"
 echo "  0. Backup Server (/mnt/backupserver) [DEFAULT]"
-echo "  1. /mnt/disk1"
-echo "  2. /mnt/disk2"
-echo "  3. /mnt/disk3"
-echo "  4. /mnt/disk4"
+echo "  1. disk1"
+echo "  2. disk2"
+echo "  3. disk3"
+echo "  4. disk4"
 echo "  5. Custom Path"
 echo "  6. Abort"
 echo "--------------------------------------------------"
@@ -120,7 +120,16 @@ while true; do
     esac
 done
 
-if [[ "$DEST_INPUT" == /* ]]; then
+# Check if DEST_INPUT is already a multi-directory target path (contains a slash)
+if [[ "$DEST_INPUT" == *"/"* ]]; then
+    if [[ "$DEST_INPUT" == /* ]]; then
+        DEST="$DEST_INPUT/$USER_CHOICE"
+        DEST_BASE="$DEST_INPUT"
+    else
+        DEST="${BASE_DEST}/${DEST_INPUT}/${USER_CHOICE}"
+        DEST_BASE="${BASE_DEST}/${DEST_INPUT}"
+    fi
+elif [[ "$DEST_INPUT" == /* ]]; then
     DEST="$DEST_INPUT/$USER_CHOICE"
     DEST_BASE="$DEST_INPUT"
 elif [[ "$dest_choice" == "0" ]]; then
@@ -133,7 +142,7 @@ fi
 
 # Safety check
 if [[ "$BASE_DEST" == "$BACKUP_TARGET" ]] || [[ "$BASE_DEST" == "$BACKUP_TARGET"/* ]]; then
-    echo -e "\n${RED}❌ ERROR: Destination cannot be the same as the Source!${NC}"
+    echo -e "\n${RED}ERROR: Destination cannot be the same as the Source!${NC}"
     exit 1
 fi
 
@@ -141,7 +150,7 @@ echo -e "\n${YELLOW}Creating backup folders...${NC}"
 mkdir -p -v "$DEST" || exit 1
 
 # ==========================================
-# 4. EXPLICIT BOOKMARK EXTRACTION (LEGACY FEATURE)
+# 4. EXPLICIT BOOKMARK EXTRACTION
 # ==========================================
 echo -e "\n${CYAN}Extracting explicit Bookmarks...${NC}"
 
@@ -149,18 +158,18 @@ echo -e "\n${CYAN}Extracting explicit Bookmarks...${NC}"
 if [[ -f "$BACKUP_TARGET/AppData/Local/Google/Chrome/User Data/Default/Bookmarks" ]]; then
     mkdir -p "$DEST/Chrome_bookmarks"
     cp "$BACKUP_TARGET/AppData/Local/Google/Chrome/User Data/Default/Bookmarks" "$DEST/Chrome_bookmarks/"
-    echo -e "${GREEN}✔ Chrome bookmarks saved.${NC}"
+    echo -e "${GREEN}Chrome bookmarks saved.${NC}"
 fi
 
 # Edge Bookmarks
 if [[ -f "$BACKUP_TARGET/AppData/Local/Microsoft/Edge/User Data/Default/Bookmarks" ]]; then
     mkdir -p "$DEST/Edge_bookmarks"
     cp "$BACKUP_TARGET/AppData/Local/Microsoft/Edge/User Data/Default/Bookmarks" "$DEST/Edge_bookmarks/"
-    echo -e "${GREEN}✔ Edge bookmarks saved.${NC}"
+    echo -e "${GREEN}Edge bookmarks saved.${NC}"
 fi
 
 # ==========================================
-# 5. SPCS & SIE ACCOUNTING DATA (LEGACY FEATURE)
+# 5. SPCS & SIE ACCOUNTING DATA
 # ==========================================
 echo -e "\n${CYAN}Checking for Swedish Accounting Data (SPCS/SIE)...${NC}"
 SPCS_TARGET="$DEST_BASE/Accounting_Data_Extra"
@@ -187,27 +196,16 @@ fi
 # 6. RSYNC COPY (USER PROFILE)
 # ==========================================
 EXCLUDES=(
-    # --- USER PROFILE SPECIFIC JUNK ---
     "NTUSER.DAT" "ntuser.dat.LOG*" "ntuser.ini"
     "MicrosoftEdgeBackups" "Cookies" "Recent" "PrintHood" "NetHood" "SendTo" "Application Data" "Local Settings"
-
-    # --- USERS' TEMPORARY FILES ---
     "*[aA]pp[dD]ata/[lL]ocal/[tT]emp" "*[aA]pp[dD]ata/[lL]ocal/[dD]ownloaded [iI]nstallations" "[tT]emporary [iI]nternet [fF]iles"
-
-    # --- BROWSER AND APP CACHES ---
     "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/*[cC]ache*" "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/CacheStorage"
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/*[cC]ache*" "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/CacheStorage"
     "*[aA]pp[dD]ata/[lL]ocal/Mozilla/[fF]irefox/**/*[cC]ache*" "*[aA]pp[dD]ata/[lL]ocal/Spotify/[sS]torage" "*[aA]pp[dD]ata/[rR]oaming/discord/[cC]ache"
-
-    # --- MICROSOFT STORE & UWP CACHES ---
     "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[lL]ocal[cC]ache" "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[aA][cC]" "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[tT]emp[sS]tate"
-
-    # --- BUILT-IN MICROSOFT CACHES & TEAMS ---
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[wW]eb[cC]ache" "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[iI]Net[cC]ache"
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[eE]xplorer/thumbcache_*.db" "*[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[cC]ache"
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[aA]pp[cC]ache"
-
-    # --- BLOATWARE (DELETE ENTIRE FOLDER) ---
     "*[aA]pp[dD]ata/[lL]ocal/Packages/*[cC]andy[cC]rush*" "*[aA]pp[dD]ata/[lL]ocal/Packages/*[kK]ing.com*" "*[aA]pp[dD]ata/[lL]ocal/Packages/*[bB]ubble[wW]itch*"
     "*[aA]pp[dD]ata/[lL]ocal/Packages/*[aA]ngry[bB]irds*" "*[aA]pp[dD]ata/[lL]ocal/Packages/*[tT]ik[tT]ok*"
 )
@@ -217,7 +215,7 @@ for e in "${EXCLUDES[@]}"; do
     RSYNC_EXCLUDES+=("--exclude=$e")
 done
 
-echo -e "\n${YELLOW}🚀 Starting main user profile copy (Excluding junk/caches)...${NC}\n"
+echo -e "\n${YELLOW}Starting main user profile copy (Excluding junk/caches)...${NC}\n"
 
 cd "$BACKUP_TARGET" || exit 1
 
@@ -227,6 +225,6 @@ rsync -avuS --progress --numeric-ids \
       . "$DEST"
 
 echo -e "\n${CYAN}==================================================${NC}"
-echo -e "${GREEN}✅ User backup for '$USER_CHOICE' is finished.${NC}"
+echo -e "${GREEN}User backup for '$USER_CHOICE' is finished.${NC}"
 echo -e "${CYAN}==================================================${NC}"
 # EOF

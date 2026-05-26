@@ -1,10 +1,10 @@
 #!/bin/bash
 # ==============================================================================
-# Script:      smart
-# Description: Performs S.M.A.R.T health checks on physical storage drives and logs the results.
+# Script:      bitlocker
+# Description: Decrypts and mounts Windows BitLocker partitions using dislocker.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.3
-# Date:        2026-04-21
+# Version:     2.0.4
+# Date:        2026-05-25
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -12,7 +12,7 @@ source /usr/local/bin/alina-env.sh
 # ==========================================
 # INITIALIZATION
 # ==========================================
-alina_header "🔐 BITLOCKER MOUNT TOOL"
+alina_header "BITLOCKER MOUNT TOOL"
 
 # Show available partitions
 echo -e "${WHITE}Available partitions:${NC}"
@@ -22,7 +22,7 @@ echo -e "\n${CYAN}--------------------------------------------------${NC}"
 read -r -p "Enter the partition to decrypt (e.g., sda3): " SRC_INPUT
 
 if [[ -z "$SRC_INPUT" ]]; then
-    echo -e "${RED}❌ No partition entered. Aborting.${NC}"
+    echo -e "${RED}No partition entered. Aborting.${NC}"
     exit 1
 fi
 
@@ -35,15 +35,15 @@ fi
 
 # Check that the partition exists
 if [ ! -b "$SRC_PART" ]; then
-    echo -e "${RED}❌ Error: Partition $SRC_PART does not exist!${NC}"
+    echo -e "${RED}Error: Partition $SRC_PART does not exist!${NC}"
     exit 1
 fi
 
 echo -e "\n${WHITE}Choose a mount destination:${NC}"
-echo "  1) /mnt/disk1"
-echo "  2) /mnt/disk2"
-echo "  3) /mnt/disk3"
-echo "  4) /mnt/disk4"
+echo "  1) disk1"
+echo "  2) disk2"
+echo "  3) disk3"
+echo "  4) disk4"
 echo "--------------------------------------------------"
 while true; do
     read -r -p "Enter a number [1-4]: " DEST_CHOICE
@@ -52,7 +52,7 @@ while true; do
         2) DEST_MOUNT="/mnt/disk2"; break ;;
         3) DEST_MOUNT="/mnt/disk3"; break ;;
         4) DEST_MOUNT="/mnt/disk4"; break ;;
-        *) echo -e "${RED}❌ Invalid choice. Try again.${NC}" ;;
+        *) echo -e "${RED}Invalid choice. Try again.${NC}" ;;
     esac
 done
 
@@ -79,7 +79,7 @@ dislocker -V "$SRC_PART" -p"$BL_KEY" -- "$DECRYPT_DIR"
 
 # Check if decryption succeeded by looking for the file dislocker creates
 if [ ! -f "$DECRYPT_DIR/dislocker-file" ]; then
-    echo -e "${RED}❌ Decryption failed. Check your recovery key.${NC}"
+    echo -e "${RED}Decryption failed. Check your recovery key.${NC}"
     exit 1
 fi
 
@@ -89,11 +89,11 @@ mount -o loop "$DECRYPT_DIR/dislocker-file" "$DEST_MOUNT"
 
 if [ $? -eq 0 ]; then
     echo -e "\n${CYAN}==================================================${NC}"
-    echo -e "${GREEN}✅ Success! The drive is decrypted and mounted at $DEST_MOUNT${NC}"
+    echo -e "${GREEN}Success! The drive is decrypted and mounted at $DEST_MOUNT${NC}"
     echo -e "You can now browse the files or run your diskbackup script."
     echo -e "${CYAN}==================================================${NC}"
 else
-    echo -e "${RED}❌ Failed to mount the decrypted file system.${NC}"
+    echo -e "${RED}Failed to mount the decrypted file system.${NC}"
     exit 1
 fi
 # EOF

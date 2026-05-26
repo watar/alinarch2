@@ -3,8 +3,8 @@
 # Script:      winver
 # Description: Extracts the Windows version, product key, and OEM key from a mounted partition.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.3
-# Date:        2026-04-21
+# Version:     2.0.4
+# Date:        2026-05-25
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -12,7 +12,7 @@ source /usr/local/bin/alina-env.sh
 # ==========================================
 # INITIALIZATION
 # ==========================================
-alina_header "🔑 WINDOWS INFO & KEY EXTRACTOR"
+alina_header "WINDOWS INFO & KEY EXTRACTOR"
 check_mount
 get_order_num
 
@@ -27,12 +27,12 @@ SRC1_INPUT=${SRC1_INPUT#/dev/}
 TARGET="/dev/$SRC1_INPUT"
 
 if [ ! -b "$TARGET" ]; then
-    echo -e "${RED}❌ ERROR: Partition $TARGET not found.${NC}"
+    echo -e "${RED}ERROR: Partition $TARGET not found.${NC}"
     exit 1
 fi
 
 if blkid "$TARGET" | grep -q "BitLocker"; then
-    echo -e "\n${RED}❌ WARNING: The drive is BitLocker encrypted!${NC}"
+    echo -e "\n${RED}WARNING: The drive is BitLocker encrypted!${NC}"
     echo "You must run the 'bitlocker' script to unlock it before you can read files."
     exit 1
 fi
@@ -42,19 +42,19 @@ mkdir -p "$MNT_PATH"
 
 echo -e "\n${YELLOW}Mounting $TARGET (Read-Only)...${NC}"
 if ! mount -t ntfs-3g -o ro "$TARGET" "${MNT_PATH}"; then
-    echo -e "${RED}❌ Could not mount the partition. Aborting.${NC}"
+    echo -e "${RED}Could not mount the partition. Aborting.${NC}"
     exit 1
 fi
 
 SOFT_PATH=$(find "${MNT_PATH}" -maxdepth 4 -ipath "*/windows/system32/config/software" | head -n 1)
 
 if [[ -z "$SOFT_PATH" ]]; then
-    echo -e "${RED}❌ No SOFTWARE file found. Are you sure this is the Windows partition?${NC}"
+    echo -e "${RED}No SOFTWARE file found. Are you sure this is the Windows partition?${NC}"
     umount "${MNT_PATH}"
     exit 1
 fi
 
-echo -e "${GREEN}✅ Found Windows Registry!${NC}\n"
+echo -e "${GREEN}Found Windows Registry!${NC}\n"
 echo -e "${CYAN}---------------------------------------------------${NC}"
 
 PROD_NAME=$(hivexget "$SOFT_PATH" 'Microsoft\Windows NT\CurrentVersion' ProductName 2>/dev/null)
@@ -122,6 +122,6 @@ REPORT="${REPORT_DIR}/${ORDER_NUM}_Windows_Info.log"
     echo "=================================================="
 } > "$REPORT"
 
-echo -e "\n${GREEN}✅ The report has been saved to the server as:${NC}"
+echo -e "\n${GREEN}The report has been saved to the server as:${NC}"
 echo "$REPORT"
 # EOF

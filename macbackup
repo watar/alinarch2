@@ -3,8 +3,8 @@
 # Script:      macbackup
 # Description: Safely copies user data from mounted macOS drives, excluding specific system folders.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.8
-# Date:        2026-04-22
+# Version:     2.1.0
+# Date:        2026-05-25
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -12,7 +12,7 @@ source /usr/local/bin/alina-env.sh
 # ==========================================
 # INITIALIZATION
 # ==========================================
-alina_header "🍏 MACOS DISK BACKUP UTILITY"
+alina_header "MACOS DISK BACKUP UTILITY"
 check_mount
 
 # Get Order Number (used for the backup folder name)
@@ -56,14 +56,14 @@ done
 if [[ "$SRC_OPT" == "custom" ]]; then
     read -r -p "Enter full path to source folder: " SOURCE_DIR
     if [[ ! -d "$SOURCE_DIR" ]]; then
-        echo -e "${RED}❌ Directory not found. Aborting.${NC}"
+        echo -e "${RED}Directory not found. Aborting.${NC}"
         exit 1
     fi
 else
     SOURCE_DIR="/mnt/$SRC_OPT"
     # Check if it's actually mounted to prevent backing up an empty folder
     if ! mountpoint -q "$SOURCE_DIR"; then
-        echo -e "${RED}⚠️ WARNING: $SOURCE_DIR does not appear to be mounted!${NC}"
+        echo -e "${RED}WARNING: $SOURCE_DIR does not appear to be mounted!${NC}"
         read -r -p "Are you sure you want to back up an unmounted folder? (y/N): " conf
         if [[ "${conf,,}" != "y" ]]; then 
             echo -e "${YELLOW}Aborting.${NC}"
@@ -78,10 +78,10 @@ fi
 echo -e "\n${CYAN}[ SELECT DESTINATION ]${NC}"
 echo -e "${WHITE}Where do you want to save the backup?${NC}"
 echo "  0. Backup Server (/mnt/backupserver) [DEFAULT]"
-echo "  1. /mnt/disk1"
-echo "  2. /mnt/disk2"
-echo "  3. /mnt/disk3"
-echo "  4. /mnt/disk4"
+echo "  1. disk1"
+echo "  2. disk2"
+echo "  3. disk3"
+echo "  4. disk4"
 echo "  5. Custom Path (e.g. USB Drive)"
 echo "  6. Abort"
 echo "--------------------------------------------------"
@@ -114,40 +114,49 @@ while true; do
     esac
 done
 
-# If the user passed a full absolute path as an argument initially, use it directly.
-# Otherwise, format the backup folder based on the destination chosen.
-if [[ "$DEST_INPUT" == /* ]]; then
+# Check if DEST_INPUT is already a multi-directory target path (contains a slash)
+if [[ "$DEST_INPUT" == *"/"* ]]; then
+    if [[ "$DEST_INPUT" == /* ]]; then
+        DEST="$DEST_INPUT"
+    else
+        DEST="${BASE_DEST}/${DEST_INPUT}"
+    fi
+elif [[ "$DEST_INPUT" == /* ]]; then
     DEST="$DEST_INPUT"
 elif [[ "$dest_choice" == "0" ]]; then
-    # Standard format for the backup server
     DEST="${BASE_DEST}/${DEST_INPUT}"
 else
-    # Prefixed format for local/custom drives
     DEST="${BASE_DEST}/Backup_${DEST_INPUT}"
 fi
 
 # Safety check: Prevent backing up a drive into itself or a subfolder within itself
 if [[ "$BASE_DEST" == "$SOURCE_DIR" ]] || [[ "$BASE_DEST" == "$SOURCE_DIR"/* ]]; then
-    echo -e "\n${RED}❌ ERROR: Destination ($BASE_DEST) cannot be the same as or inside the Source ($SOURCE_DIR)!${NC}"
+    echo -e "\n${RED}ERROR: Destination ($BASE_DEST) cannot be the same as or inside the Source ($SOURCE_DIR)!${NC}"
     echo "Aborting for safety."
     exit 1
 fi
 
 echo -e "\n${YELLOW}Creating backup folder at destination...${NC}"
-mkdir -p -v "$DEST" || { echo -e "${RED}❌ Failed to create $DEST. Check permissions or mount status.${NC}"; exit 1; }
+mkdir -p -v "$DEST" || { 
+    echo -e "${RED}Failed to create $DEST. Check permissions or mount status.${NC}"
+    exit 1
+}
 
 echo -e "\n${WHITE}Disk space at destination (${BASE_DEST}):${NC}"
 df -h "$BASE_DEST" 2>/dev/null || echo "Could not read disk space."
 
-# Navigate to the chosen folder so the rsync command (which uses '.') works perfectly
-cd "$SOURCE_DIR" || { echo -e "${RED}❌ Failed to access $SOURCE_DIR${NC}"; exit 1; }
+# Navigate to the chosen folder so the rsync command works perfectly
+cd "$SOURCE_DIR" || { 
+    echo -e "${RED}Failed to access $SOURCE_DIR${NC}"
+    exit 1
+}
 
 echo -e "\n${CYAN}[ READY TO BACKUP ]${NC}"
 echo -e "From (Source): ${WHITE}$SOURCE_DIR${NC}"
 echo -e "To (Target):   ${WHITE}$DEST${NC}"
 
 if [[ "$SOURCE_DIR" == "/" ]] || [[ "$SOURCE_DIR" == "/root" ]]; then
-    echo -e "\n${RED}❌ WARNING: You are about to back up the LiveCD root folder!${NC}"
+    echo -e "\n${RED}WARNING: You are about to back up the LiveCD root folder!${NC}"
     echo "Aborting for safety."
     exit 1
 fi
@@ -172,16 +181,15 @@ for e in "${EXCLUDES[@]}"; do
     RSYNC_EXCLUDES+=("--exclude=$e")
 done
 
-echo -e "\n${YELLOW}🚀 Starting file copy of macOS data (This may take some time)...${NC}\n"
+echo -e "\n${YELLOW}Starting file copy of macOS data (This may take some time)...${NC}\n"
 
-# Notice the "." at the end below. Because we did cd "$SOURCE_DIR", it copies exactly what it should!
 rsync -avuS --progress --numeric-ids \
       --no-owner --no-group --no-perms --chmod=u=rwX \
       "${RSYNC_EXCLUDES[@]}" \
       . "$DEST"
 
 echo -e "\n${CYAN}==================================================${NC}"
-echo -e "${GREEN}✅ Copy complete and permissions adjusted.${NC}"
-echo -e "✅ macOS Backup for '$DEST_INPUT' is finished."
+echo -e "${GREEN}Copy complete and permissions adjusted.${NC}"
+echo -e "macOS Backup for '$DEST_INPUT' is finished."
 echo -e "${CYAN}==================================================${NC}"
 # EOF

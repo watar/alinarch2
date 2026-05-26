@@ -3,8 +3,8 @@
 # Script:      hddmount
 # Description: Universal disk mount utility for detecting, repairing, and safely mounting filesystems.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.3
-# Date:        2026-04-21
+# Version:     2.0.5
+# Date:        2026-05-25
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -12,7 +12,7 @@ source /usr/local/bin/alina-env.sh
 # ==========================================
 # INITIALIZATION
 # ==========================================
-alina_header "💾 UNIVERSAL DISK MOUNT UTILITY"
+alina_header "UNIVERSAL DISK MOUNT UTILITY"
 
 # Show disks and partitions, filter out the LiveCD and hidden loop devices
 echo -e "${WHITE}Available drives for mounting:${NC}"
@@ -31,7 +31,7 @@ while true; do
     fi
 
     if [[ -z "$SRC1_INPUT" ]]; then
-        echo -e "${RED}⚠️  You must specify a partition.${NC}"
+        echo -e "${RED}You must specify a partition.${NC}"
         continue
     fi
 
@@ -44,14 +44,14 @@ while true; do
 
     # Security check 1: Does the partition even exist?
     if [ ! -b "$SRC1" ]; then
-        echo -e "${RED}❌ ERROR: Partition $SRC1 not found. Check the spelling and try again.${NC}"
+        echo -e "${RED}ERROR: Partition $SRC1 not found. Check the spelling and try again.${NC}"
         continue
     fi
 
     # Security check 2: Is the disk already mounted?
     if grep -qs "^$SRC1 " /proc/mounts; then
         MOUNTED_AT=$(grep -m1 "^$SRC1 " /proc/mounts | awk '{print $2}')
-        echo -e "${YELLOW}⚠️  $SRC1 is already mounted at $MOUNTED_AT! Choose another partition.${NC}"
+        echo -e "${YELLOW}Warning: $SRC1 is already mounted at $MOUNTED_AT! Choose another partition.${NC}"
         continue
     fi
 
@@ -60,10 +60,10 @@ while true; do
 done
 
 echo -e "\n${WHITE}Where should it be mounted?${NC}"
-echo "  1) /mnt/disk1"
-echo "  2) /mnt/disk2"
-echo "  3) /mnt/disk3"
-echo "  4) /mnt/disk4"
+echo "  1) disk1"
+echo "  2) disk2"
+echo "  3) disk3"
+echo "  4) disk4"
 echo "  5) Abort"
 echo "--------------------------------------------------"
 while true; do
@@ -74,7 +74,7 @@ while true; do
         3) DEST="/mnt/disk3"; break ;;
         4) DEST="/mnt/disk4"; break ;;
         5) echo -e "${YELLOW}Aborting.${NC}"; exit 0 ;;
-        *) echo -e "${RED}❌ Invalid choice. Try again.${NC}" ;;
+        *) echo -e "${RED}Invalid choice. Try again.${NC}" ;;
     esac
 done
 
@@ -84,48 +84,47 @@ echo -e "\n${CYAN}==================================================${NC}"
 
 # Identify the file system automatically
 FSTYPE=$(blkid -s TYPE -o value "$SRC1")
-echo -e "${WHITE}🔍 Discovered file system:${NC} ${YELLOW}${FSTYPE:-Unknown/Encrypted}${NC}"
+echo -e "${WHITE}Discovered file system:${NC} ${YELLOW}${FSTYPE:-Unknown/Encrypted}${NC}"
 
 # Choose mounting method based on file system
 case "${FSTYPE,,}" in
     ntfs)
-        echo -e "${YELLOW}🛠️  Repairing NTFS journal (ntfsfix)...${NC}"
+        echo -e "${YELLOW}Repairing NTFS journal (ntfsfix)...${NC}"
         ntfsfix "$SRC1"
-        echo -e "${YELLOW}🚀 Mounting NTFS and clearing hibernation file (hiberfile)...${NC}"
+        echo -e "${YELLOW}Mounting NTFS and clearing hibernation file (hiberfile)...${NC}"
         mount -t ntfs-3g "$SRC1" "$DEST" -o remove_hiberfile
         ;;
     vfat|fat16|fat32|exfat)
-        echo -e "${YELLOW}🚀 Mounting FAT/exFAT file system...${NC}"
-        # Allows read/write permissions for all users for smoother copying
+        echo -e "${YELLOW}Mounting FAT/exFAT file system...${NC}"
         mount "$SRC1" "$DEST" -o rw,umask=000
         ;;
     ext2|ext3|ext4|btrfs|xfs)
-        echo -e "${YELLOW}🚀 Mounting Linux file system...${NC}"
+        echo -e "${YELLOW}Mounting Linux file system...${NC}"
         mount "$SRC1" "$DEST"
         ;;
     apfs)
-        echo -e "${YELLOW}🍏 Mounting Apple APFS file system...${NC}"
+        echo -e "${YELLOW}Mounting Apple APFS file system...${NC}"
         apfs-fuse -o allow_other "$SRC1" "$DEST"
         ;;
     hfsplus)
-        echo -e "${YELLOW}🍏 Mounting Apple HFS+ (Older Mac)...${NC}"
+        echo -e "${YELLOW}Mounting Apple HFS+ (Older Mac)...${NC}"
         mount -t hfsplus -o ro "$SRC1" "$DEST"
         ;;
     crypto_luks|bitlocker)
-        echo -e "${RED}🔒 WARNING: The disk appears to be encrypted ($FSTYPE)!${NC}"
+        echo -e "${RED}WARNING: The disk appears to be encrypted ($FSTYPE)!${NC}"
         echo -e "You must run the 'bitlocker' script instead to mount this disk directly."
         exit 1
         ;;
     *)
-        echo -e "${YELLOW}⚠️  Unknown file system. Trying standard mount...${NC}"
+        echo -e "${YELLOW}Unknown file system. Trying standard mount...${NC}"
         mount "$SRC1" "$DEST"
         ;;
 esac
 
 # Confirm if the mount was successful
 if mountpoint -q "$DEST" || grep -qs "$DEST" /proc/mounts; then
-    echo -e "\n${GREEN}✅ DONE! $SRC1 is now mounted and ready to be explored at $DEST${NC}"
+    echo -e "\n${GREEN}DONE! $SRC1 is now mounted and ready to be explored at $DEST${NC}"
 else
-    echo -e "\n${RED}❌ ERROR: Something went wrong when mounting $SRC1.${NC}"
+    echo -e "\n${RED}ERROR: Something went wrong when mounting $SRC1.${NC}"
 fi
 # EOF

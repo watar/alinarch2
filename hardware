@@ -3,8 +3,8 @@
 # Script:      hardware
 # Description: Generates a comprehensive hardware valuation report and system overview.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.3
-# Date:        2026-04-21
+# Version:     2.0.4
+# Date:        2026-05-25
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -12,7 +12,7 @@ source /usr/local/bin/alina-env.sh
 # ==========================================
 # INITIALIZATION
 # ==========================================
-alina_header "🖥️  HARDWARE VALUATION REPORT"
+alina_header "HARDWARE VALUATION REPORT"
 check_mount
 get_order_num
 
@@ -60,7 +60,7 @@ echo -e "\n${YELLOW}Generating report for $ORDER_NUM. Please wait...${NC}"
 } > "$LOGFILE"
 
 echo -e "\n${CYAN}==================================================${NC}"
-echo -e "${WHITE} 💾 Found Storage Drives & SMART Analysis${NC}"
+echo -e "${WHITE} Found Storage Drives & SMART Analysis${NC}"
 echo -e "${CYAN}==================================================${NC}"
 
 lsblk -d -e 7 -o NAME,SIZE,MODEL,TRAN | grep -i -v -E 'usb'
@@ -78,7 +78,7 @@ for DISK in $(lsblk -d -n -e 7 -o NAME,TRAN | awk '$2 != "usb" {print $1}'); do
     fi
 done
 
-echo -e "\n${GREEN}✅ Report created! Saved on the server as:${NC}"
+echo -e "\n${GREEN}Report created! Saved on the server as:${NC}"
 echo "$LOGFILE"
 echo -e "${YELLOW}Remember to stress test the computer (OCCT, FurMark2).${NC}"
 # EOF

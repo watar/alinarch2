@@ -3,26 +3,61 @@
 # Script:      smart
 # Description: Performs S.M.A.R.T health checks on physical storage drives and logs the results.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.3
-# Date:        2026-04-21
+# Version:     2.0.4
+# Date:        2026-05-25
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
 
 # ==========================================
-# INITIALIZATION
+# INITIALIZATION & MOUNT CHECK
 # ==========================================
-alina_header "🩺 S.M.A.R.T HEALTH CHECK"
-check_mount
+alina_header "STORAGE SUB-SYSTEM HEALTH ANALYSIS"
 get_order_num
 
+SAVE_REPORT=true
+
+# Check if the backup server is mounted
+if ! mountpoint -q "/mnt/backupserver"; then
+    echo -e "${YELLOW}Warning: Network target path (/mnt/backupserver) is unmounted!${NC}"
+    echo "--------------------------------------------------"
+    echo " 1) Initialize target network mount rule now"
+    echo " 2) Bypass logging constraints (Screen-only analysis)"
+    echo " 3) Abort module execution"
+    echo "--------------------------------------------------"
+    read -r -p "Select operational mode [1-3]: " mount_choice
+
+    case "$mount_choice" in
+        1)
+            echo -e "\n${YELLOW}Calling remote storage hooks...${NC}"
+            check_mount 
+            if ! mountpoint -q "/mnt/backupserver"; then
+                echo -e "${RED}Error: Mount protocol rejected connection. Log emission suspended.${NC}"
+                read -r -p "Proceed with local screen execution? [y/N]: " retry_choice
+                if [[ ! "${retry_choice,,}" =~ ^(y|yes)$ ]]; then
+                    exit 1
+                fi
+                SAVE_REPORT=false
+            fi
+            ;;
+        2)
+            echo -e "\n${YELLOW}Running in isolated diagnostic layer. Saving skipped.${NC}"
+            SAVE_REPORT=false
+            ;;
+        *)
+            echo -e "\nAborted by operator request."
+            exit 1
+            ;;
+    esac
+fi
+
 ## List disks (Excluding loop devices and strictly filtering out USBs)
-echo -e "${WHITE}Available drives for testing:${NC}"
+echo -e "\n${WHITE}Available physical hardware paths:${NC}"
 lsblk -d -e 7 -o NAME,SIZE,MODEL,TRAN | grep -i -v "usb"
 echo ""
 
 ## Asking for device name
-read -r -p "Enter device (e.g. sda), or press Enter to check ALL physical drives: " DEV_INPUT
+read -r -p "Target block identifier (e.g., sda) [Leave blank to inspect ALL]: " DEV_INPUT
 
 if [[ -z "$DEV_INPUT" ]]; then 
     DEV_INPUT="all"
@@ -63,7 +98,7 @@ generate_output() {
         CYCLES=$(echo "$SMART_DATA" | grep "power_cycles" | awk -F ':' '{print $2}' | tr -d ' ')
         ERRORS=$(echo "$SMART_DATA" | grep "media_errors" | awk -F ':' '{print $2}' | tr -d ' ')
 
-        echo -e "${CYAN}[ NVMe Health Log ]${NC}"
+        echo -e "${CYAN}[ NVMe Health Register Log ]${NC}"
         print_val "Power On Hours" "$HOURS"
         print_val "Power Cycles" "$CYCLES"
         print_val "Temperature" "$TEMP"
@@ -76,8 +111,8 @@ generate_output() {
             printf "%-28s : ${GREEN}%s%%${NC}\n" "Percentage Used (Wear)" "$USED"
         fi
         
-        print_val "Critical Warning" "$CRIT"
-        print_val "Media Errors" "$ERRORS"
+        print_val "Critical Warning Status" "$CRIT"
+        print_val "Hardware Media Errors" "$ERRORS"
     else
         SMART_DATA=$(smartctl -A "$TARGET")
   
@@ -92,7 +127,7 @@ generate_output() {
         HOURS=$(echo "$SMART_DATA" | grep "Power_On_Hours" | awk '{print $10}')
         STATUS=$(smartctl -H "$TARGET" | grep "test result" | sed 's/^.*: //')
 
-        echo -e "${CYAN}[ SATA/HDD S.M.A.R.T Data ]${NC}"
+        echo -e "${CYAN}[ SATA Internal Register S.M.A.R.T Matrix ]${NC}"
         print_val "Power On Hours" "$HOURS"
         print_val "Temperature (C)" "$TEMP"
         print_val "Raw Read Error Rate" "$RAW_READ"
@@ -103,11 +138,11 @@ generate_output() {
         print_val "Offline Uncorrectable" "$OFFLINE"
         print_val "UDMA CRC Error Count" "$CRC"
 
-        echo -e "\n${CYAN}[ Overall Health Assessment ]${NC}"
+        echo -e "\n${CYAN}[ Structural Integrity Assessment ]${NC}"
         if [[ "$STATUS" == *"PASSED"* ]]; then
-            echo -e "Health Status: ${GREEN}PASSED${NC}"
+            echo -e "Health Evaluation: ${GREEN}PASSED${NC}"
         else
-            echo -e "Health Status: ${RED}${STATUS}${NC}"
+            echo -e "Health Evaluation: ${RED}${STATUS}${NC}"
         fi
     fi
 }
@@ -115,24 +150,26 @@ generate_output() {
 # ==========================================
 # EXPORT LOGIC
 # ==========================================
-REPORT_DIR="/mnt/backupserver/__reports"
-mkdir -p "$REPORT_DIR" 2>/dev/null
+if [ "$SAVE_REPORT" = true ]; then
+    REPORT_DIR="/mnt/backupserver/__reports"
+    mkdir -p "$REPORT_DIR" 2>/dev/null
 
-if [[ "${DEV_INPUT,,}" == "all" ]]; then
-    FILE_PATH="${REPORT_DIR}/${ORDER_NUM}_SMART_Report.log"
-    REPORT_TITLE="S.M.A.R.T MASTER HEALTH CHECK REPORT"
-else
-    FILE_PATH="${REPORT_DIR}/${ORDER_NUM}_SMART_Report_${CLEAN_DEV}.log"
-    REPORT_TITLE="S.M.A.R.T HEALTH CHECK REPORT"
+    if [[ "${DEV_INPUT,,}" == "all" ]]; then
+        FILE_PATH="${REPORT_DIR}/${ORDER_NUM}_SMART_Report.log"
+        REPORT_TITLE="S.M.A.R.T MASTER HEALTH CHECK REPORT"
+    else
+        FILE_PATH="${REPORT_DIR}/${ORDER_NUM}_SMART_Report_${CLEAN_DEV}.log"
+        REPORT_TITLE="S.M.A.R.T HEALTH CHECK REPORT"
+    fi
+
+    {
+        echo "=================================================="
+        echo " $REPORT_TITLE"
+        echo " Order Number: $ORDER_NUM"
+        echo " Date: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "=================================================="
+    } > "$FILE_PATH"
 fi
-
-{
-    echo "=================================================="
-    echo " $REPORT_TITLE"
-    echo " Order Number: $ORDER_NUM"
-    echo " Date: $(date '+%Y-%m-%d %H:%M:%S')"
-    echo "=================================================="
-} > "$FILE_PATH"
 
 # Output Phase
 for DEV in $DEVICES; do
@@ -148,29 +185,35 @@ for DEV in $DEVICES; do
     [[ -z "$MODEL" ]] && MODEL="Unknown"
     [[ -z "$SERIAL" ]] && SERIAL="Unknown"
     
-    echo -e "\n${WHITE}Analyzing $TARGET...${NC}"
-    echo -e "  ${YELLOW}Model:${NC}    $MODEL"
-    echo -e "  ${YELLOW}Serial:${NC}   $SERIAL"
-    echo -e "  ${YELLOW}Size:${NC}     $SIZE"
-    echo -e "  ${YELLOW}Firmware:${NC} $FIRMWARE\n"
+    echo -e "\n${WHITE}Evaluating block path: $TARGET...${NC}"
+    echo -e "  Model:    $MODEL"
+    echo -e "  Serial:   $SERIAL"
+    echo -e "  Size:     $SIZE"
+    echo -e "  Firmware: $FIRMWARE\n"
     
     generate_output "$DEV"
     
-    # Save to file silently
-    {
-        echo ""
-        echo "--------------------------------------------------"
-        echo " Device:   $TARGET"
-        echo " Model:    $MODEL"
-        echo " Serial:   $SERIAL"
-        echo " Size:     $SIZE"
-        echo " Firmware: $FIRMWARE"
-        echo "--------------------------------------------------"
-        generate_output "$DEV"
-    } | sed 's/\x1b\[[0-9;]*m//g' >> "$FILE_PATH"
+    # Save to file silently if server mode is allowed
+    if [ "$SAVE_REPORT" = true ]; then
+        {
+            echo ""
+            echo "--------------------------------------------------"
+            echo " Device:   $TARGET"
+            echo " Model:    $MODEL"
+            echo " Serial:   $SERIAL"
+            echo " Size:     $SIZE"
+            echo " Firmware: $FIRMWARE"
+            echo "--------------------------------------------------"
+            generate_output "$DEV"
+        } | sed 's/\x1b\[[0-9;]*m//g' >> "$FILE_PATH"
+    fi
     
     echo -e "${CYAN}--------------------------------------------------${NC}"
 done
 
-echo -e "${GREEN}✅ Complete SMART report saved to: $FILE_PATH${NC}"
+if [ "$SAVE_REPORT" = true ]; then
+    echo -e "${GREEN}Consolidated log dispatched to: $FILE_PATH${NC}"
+else
+    echo -e "${YELLOW}Evaluation complete. Network logging skipped.${NC}"
+fi
 # EOF

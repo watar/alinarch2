@@ -1,90 +1,139 @@
 #!/bin/bash
 # ==============================================================================
 # Script:      menu
-# Description: Interactive main menu and session initialization for Alina Diagnostics.
+# Description: Categorized interactive main menu for Alina Diagnostics.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.4
-# Date:        2026-04-23
+# Version:     2.1.7
+# Date:        2026-05-25
 # ==============================================================================
 
-# Fetch the active IP address
-IP_ADDR=$(ip -br -4 addr show | grep -v "lo" | awk '{print $3}' | cut -d/ -f1 | head -n 1)
-if [ -z "$IP_ADDR" ]; then IP_ADDR="Offline (No IP)"; fi
+# --- COLOR PALETTE ---
+RED='\e[1;31m'
+GREEN='\e[1;32m'
+YELLOW='\e[1;33m'
+CYAN='\e[1;36m'
+NC='\e[0m'
 
-# Prompt for Order Number if it doesn't exist
-if [ ! -f /tmp/alina_order ]; then
-    clear
-    echo "========================================"
-    echo "       Welcome to Alina Arch 2.0        "
-    echo "========================================"
-    echo " 🌐 Current IP: $IP_ADDR"
-    echo "========================================"
-    echo ""
-    read -p "Please enter the Order Number (or press Enter to skip): " order_num
+# --- SMART CHECK FUNCTION ---
+check_disk_health() {
+    HEALTH_STATUS=""
+    # Filter strictly for real SATA (sdX) and NVMe drives, ignoring USB and loops
+    DISKS=$(lsblk -dno NAME,TRAN | grep -E "sata|nvme" | grep -v "usb" | awk '{print $1}')
     
-    # If left blank, set it to "N/A" instead of throwing an error
-    if [ -z "$order_num" ]; then
-        order_num="No_Order"
+    if [ -z "$DISKS" ]; then
+        # Fallback if TRAN framework doesn't expose metadata type
+        DISKS=$(lsblk -dno NAME | grep -E "^sd[a-z]|^nvme[0-9]n[0-9]" | grep -v "loop")
     fi
-    echo "$order_num" > /tmp/alina_order
-fi
 
-# Load the order number
-ORDER_NUM=$(cat /tmp/alina_order)
+    for DISK in $DISKS; do
+        if ! sudo smartctl -H "/dev/$DISK" > /dev/null 2>&1; then
+            HEALTH_STATUS+="${RED}[!!] WARNING: /dev/$DISK reports SMART FAILURE!${NC}\n"
+        fi
+    done
+    
+    if [ -z "$HEALTH_STATUS" ]; then
+        echo -e "${GREEN}  All physical disks look healthy${NC}"
+    else
+        echo -e "$HEALTH_STATUS"
+    fi
+}
 
-# ------------------------------------------
-# MAIN MENU LOOP
-# ------------------------------------------
+# --- INITIALIZATION LOOP ---
 while true; do
+    IP_ADDR=$(ip -br -4 addr show | grep -v "lo" | awk '{print $3}' | cut -d/ -f1 | head -n 1)
+    if [ -z "$IP_ADDR" ]; then IP_ADDR="Offline (No IP)"; fi
+
+    if [ ! -f /tmp/alina_order ]; then
+        clear
+        echo -e "${CYAN}========================================${NC}"
+        echo -e "       Welcome to Alina Arch 2.0        "
+        echo -e "${CYAN}========================================${NC}"
+        echo -e " IP: $IP_ADDR"
+        echo -e "${CYAN}========================================${NC}"
+        read -p "Order Number (Enter to skip): " order_num
+        
+        if [ -z "$order_num" ]; then
+            order_num="No_Order"
+        fi
+        echo "$order_num" > /tmp/alina_order
+    fi
+
+    ORDER_NUM=$(cat /tmp/alina_order)
+    CURRENT_TIME=$(date "+%H:%M")
+
     clear
-    echo "========================================"
-    echo "       Welcome to Alina Arch 2.0        "
-    echo "========================================"
-    echo " 🌐 IP: $IP_ADDR  |  📦 Order: $ORDER_NUM"
-    echo "========================================"
-    echo "  1. 🖥️  Hardware Valuation (hardware)"
-    echo "  2. 💾 Mount HDD (hddmount)"
-    echo "  3. 💽 Disk Backup (diskbackup)"
-    echo "  4. 👤 User Backup (userbackup)"
-    echo "  5. 🩺 S.M.A.R.T Health Check (smart)"
-    echo "  6. 🔐 BitLocker Unlock (bitlocker)"
-    echo "  7. 🍏 Mount macOS Drive (macmount)"
-    echo "  8. 🍏 macOS Backup (macbackup)"
-    echo "  9. 🔥 OCCT Stress Test (occt-report)"
-    echo " 10. 🔥 FurMark 2 GPU Test (fm-report)"
-    echo " 11. 🔑 Windows Info & Keys (winver)"
-    echo " 12. 🔓 Reset Windows Password (ntpass)"
-    echo " ---------------------------------------"
-    echo " 13. 🔄 Change Order Number"
-    echo " 14. ❌ Exit to Terminal"
-    echo " 15. 🔄 Reboot System"
-    echo " 16. ⏻  Shutdown System"
-    echo "========================================"
-    read -p "Select an option [1-16]: " choice
+    echo -e "${CYAN}==================================================${NC}"
+    echo -e " IP: $IP_ADDR | Order: $ORDER_NUM | Time: $CURRENT_TIME"
+    echo -e "${CYAN}--------------------------------------------------${NC}"
+    echo -e "${YELLOW} Disk Health Status:${NC}"
+    check_disk_health
+    echo -e "${CYAN}==================================================${NC}"
+    # CATEGORY 1: HARDWARE & DIAGNOSTICS
+    echo -e "${CYAN}[ Hardware & Diagnostics ]${NC}"
+    echo -e "  1. Hardware Valuation                 (hardware)"
+    echo -e "  2. S.M.A.R.T Health Check             (smart)"
+    echo -e "  3. OCCT Stress Test                   (occt-report)"
+    echo -e "  4. FurMark 2 GPU Test                 (fm-report)"
+    echo -e "  5. Dead Pixel Test                    (Browser)"
+    # CATEGORY 2: DISK MANAGEMENT & BACKUP
+    echo -e "${CYAN}[ Disk Management & Backup ]${NC}"
+    echo -e "  6. Mount Disk                         (hddmount)"
+    echo -e "  7. Disk Backup                        (diskbackup)"
+    echo -e "  8. User Backup                        (userbackup)"
+    echo -e "  9. Mount macOS Drive                  (macmount)"
+    echo -e " 10. macOS Backup                       (macbackup)"
+    # CATEGORY 3: SYSTEM UTILITIES (WINDOWS)
+    echo -e "${CYAN}[ System Utilities (Windows) ]${NC}"
+    echo -e " 11. BitLocker Unlock                   (bitlocker)"
+    echo -e " 12. Windows Info & Keys                (winver)"
+    echo -e " 13. Reset Windows Password             (ntpass)"
+    echo -e "${CYAN}--------------------------------------------------${NC}"
+    # CATEGORY 4: SESSION MANAGEMENT
+    echo -e " 14. Change Order    15. Exit Terminal"
+    echo -e " 16. Reboot System   17. Shutdown System"
+    echo -e "${CYAN}==================================================${NC}"
+    read -p "Select option [1-17]: " choice
 
     case $choice in
+        # Hardware & Diagnostics
         1) /usr/local/bin/hardware ;;
-        2) /usr/local/bin/hddmount ;;
-        3) /usr/local/bin/diskbackup ;;
-        4) /usr/local/bin/userbackup ;;
-        5) /usr/local/bin/smart ;;
-        6) /usr/local/bin/bitlocker ;;
-        7) /usr/local/bin/macmount ;;
-        8) /usr/local/bin/macbackup ;;
-        9) /usr/local/bin/occt-report ;;
-        10) /usr/local/bin/fm-report ;;
-        11) /usr/local/bin/winver ;;
-        12) /usr/local/bin/ntpass ;;
-        13) rm -f /tmp/alina_order; exec menu ;;
-        14) clear; break ;;
-        15) echo -e "\nRebooting system..."; reboot ;;
-        16) echo -e "\nShutting down..."; poweroff ;;
-        *) echo "Invalid option!"; sleep 1 ;;
+        2) /usr/local/bin/smart ;;
+        3) /usr/local/bin/occt-report ;;
+        4) /usr/local/bin/fm-report ;;
+        5) 
+            echo -e "\n${YELLOW}Opening Dead Pixel Test in background...${NC}"
+            xdg-open "https://deadpixeltest.org/" > /dev/null 2>&1 &
+            sleep 1
+            ;;
+        # Disk Management & Backup
+        6) /usr/local/bin/hddmount ;;
+        7) /usr/local/bin/diskbackup ;;
+        8) /usr/local/bin/userbackup ;;
+        9) /usr/local/bin/macmount ;;
+        10) /usr/local/bin/macbackup ;;
+        
+        # System Utilities (Windows)
+        11) /usr/local/bin/bitlocker ;;
+        12) /usr/local/bin/winver ;;
+        13) /usr/local/bin/ntpass ;;
+        
+        # Session Management
+        14) 
+            rm -f /tmp/alina_order
+            continue 
+            ;;
+        15) 
+            clear
+            exit 0
+            ;;
+        16) echo -e "\nRebooting..."; reboot ;;
+        17) echo -e "\nShutting down..."; poweroff ;;
+        *) echo -e "${RED}Invalid option!${NC}"; sleep 1 ;;
     esac
     
-    # Pause before redrawing the menu so they can read the script output
-    if [[ "$choice" -ge 1 && "$choice" -le 12 ]]; then
-        echo -e "\nPress Enter to return to the Main Menu..."
+    # Pause after tools 1-13 so the tech has time to see output
+    if [[ "$choice" -ge 1 && "$choice" -le 13 ]]; then
+        echo -e "\nPress Enter to return to Menu..."
         read -r
     fi
 done

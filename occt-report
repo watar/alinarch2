@@ -3,14 +3,14 @@
 # Script:      occt-report
 # Description: Launches an OCCT stress test and automates a screenshot capture of the results.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.3
-# Date:        2026-04-21
+# Version:     2.0.4
+# Date:        2026-05-25
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
 
 # Call the standard functions
-alina_header "🔥 OCCT STRESS TEST & SCREENSHOT EXPORT"
+alina_header "OCCT STRESS TEST & SCREENSHOT EXPORT"
 check_mount
 get_order_num
 
@@ -24,7 +24,7 @@ echo -e "${YELLOW}Launching OCCT...${NC}"
 occt >/dev/null 2>&1 &
 
 echo -e "\n${CYAN}==================================================${NC}"
-echo -e "${WHITE} ⏱️  START YOUR STRESS TEST NOW${NC}"
+echo -e "${WHITE} START YOUR STRESS TEST NOW${NC}"
 echo -e "${CYAN}==================================================${NC}"
 echo -e "1. Go to the OCCT window."
 echo -e "2. Configure and start your test."
@@ -33,21 +33,21 @@ echo -e "4. The crosshair will appear automatically when the timer ends.\n"
 
 SECS=120
 while [ $SECS -gt 0 ]; do
-    printf "\r⏳ Time remaining: %02d:%02d " $((SECS/60)) $((SECS%60))
+    printf "\rTime remaining: %02d:%02d " $((SECS/60)) $((SECS%60))
     sleep 1
     ((SECS--))
 done
 
-echo -e "\n\n${GREEN}⏰ TIME IS UP!${NC}\a"
+echo -e "\n\n${GREEN}TIME IS UP!${NC}\a"
 
-echo -e "${CYAN}🖱️  Your mouse is now a crosshair!${NC}"
+echo -e "${CYAN}Your mouse is now a crosshair!${NC}"
 echo -e "Click directly on the OCCT window to capture the results."
 scrot -s -d 1 "$FILE_PATH"
 
 if [ -f "$FILE_PATH" ]; then
-    echo -e "\n${GREEN}✅ Screenshot successfully saved to server!${NC}"
-    echo -e "📍 Saved to: $FILE_PATH"
+    echo -e "\n${GREEN}Screenshot successfully saved to server!${NC}"
+    echo -e "Saved to: $FILE_PATH"
 else
-    echo -e "\n${RED}❌ Error: Screenshot was cancelled or failed.${NC}"
+    echo -e "\n${RED}Error: Screenshot was cancelled or failed.${NC}"
 fi
 # EOF
