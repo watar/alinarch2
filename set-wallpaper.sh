@@ -3,8 +3,8 @@
 # Script:      set-wallpaper.sh
 # Description: Automatically detects connected monitors and sets the Alina wallpaper.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.4
-# Date:        2026-05-25
+# Version:     2.1.11
+# Date:        2026-008-11
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh

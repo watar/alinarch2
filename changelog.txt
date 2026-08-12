@@ -5,6 +5,32 @@ KONTAKT: Ralf R.
 E-POST: ralf.rangedahl@alina.se
 ==================================================
 
+Version:     2.1.9
+Datum:       2026-08-12
+
+SYSTEM & CORE (Archiso)
+-----------------------
+* Inbyggt stöd för OneDrive: Integrerade pluginet 'ntfs-3g-onedrive' direkt i ISO-bygget. LiveCD:n kan nu läsa och montera Windows 10/11 "Files On-Demand" (reparse points) utan att behandla dem som trasiga symlinks.
+* Fix för terminalsession: Löste buggen med en oändlig loop i autostart-profilen för `.zshrc`. När man avslutar menyn hamnar man nu direkt i en fungerande terminalsession på första försöket.
+
+MAIN MENU ('menu')
+-----------------------
+* Uppdaterad navigering: Ersatte numeriska alternativ för sessionshantering med snabbare kortkommandon ('x' för att avsluta menyn, 'r' för omstart, 'q' för avstängning).
+* Återmontering av server: Lade till ett dedikerat alternativ för "Remount Server" direkt i huvudmenyn.
+* S.M.A.R.T. Hälsokontroll: Förfinade logiken för hårdvarukontrollen så att den känner av tomma anslutningar. Den visar nu en tydlig varning om att "Inga fysiska diskar upptäcktes" istället för att ge falska SMART-fel när inga diskar är inkopplade.
+
+BACKUP UTILITY ('diskbackup' & 'userbackup')
+-----------------------
+* Offline-flexibilitet ('diskbackup'): Tog bort det hårda nätverksstoppet. Tekniker kan nu utföra lokala eller anpassade backuper (t.ex. till USB-minnen) även när backupservern är offline.
+* Avancerad OneDrive-kopiering: Lade till en riktad sekundär rsync-fas specifikt för OneDrive-mappar i både 'diskbackup' och 'userbackup' för att säkerställa att lokala molnfiler kopieras fysiskt.
+* Smart molnhantering: Båda backupskripten hoppar nu snyggt över trasiga symlinks i Windows-profiler (som 'Default User') för att förhindra krascher. De fångar även upp rsync Error 23 och varnar teknikern i klartext om kundens data enbart existerar i Microsoft-molnet och saknas lokalt på disken.
+
+DIAGNOSTICS & NETWORK ('fm-report' & 'backupserver_mount')
+-----------------------
+* FurMark 2 Offline-läge: GPU-stresstestet känner nu av om backupservern saknas och sparar istället prestandarapporten lokalt i '/tmp/' för att undvika timeout-fel i nätverket.
+* Nätverksmigrering: Lade till det nya subnätet för Enköping (10.150.20.80) i monteringsskriptet, men behöll det gamla subnätet för att säkerställa en sömlös övergång för alla arbetsbänkar.
+
+
 VERSION: 2.1.7
 DATE: 2026-05-26
 

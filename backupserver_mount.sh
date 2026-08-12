@@ -3,8 +3,8 @@
 # Script:      backupserver_mount.sh
 # Description: Automatically detects location via IP subnet and mounts the correct backup server.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.4
-# Date:        2026-05-25
+# Version:     2.1.11
+# Date:        2026-008-11
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -31,14 +31,13 @@ done
 echo -e "${GREEN}Network connected! Detected subnet:${NC} $ipmatch.x"
 echo -e "${CYAN}--------------------------------------------------${NC}"
 
-# Server Array. 10.110=KH, 10.120=ENK, 10.130=NK, 10.140=Öst 10.130.3=NK admin
+# Server Array. 10.110=KH, 10.150=ENK, 10.130=NK, 10.140=Öst 10.130.3=NK admin
 SERVERS=(
   10.110.20.10
-  10.120.20.80
   10.130.20.210
   10.140.20.201
-  10.130.3.210
-)  
+  10.150.20.80
+  )  
 
 echo -e "${YELLOW}Searching for a matching local backup server...${NC}"
 MOUNTED=false

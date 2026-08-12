@@ -3,8 +3,8 @@
 # Script:      fm-report
 # Description: Runs a FurMark 2 GPU burn-in test and logs the hardware performance output.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.6
-# Date:        2026-05-25
+# Version:     2.1.11
+# Date:        2026-008-11
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -16,11 +16,23 @@ alina_header "GPU BURN-IN & STRESS TEST (FurMark 2)"
 check_mount
 get_order_num
 
-# Target directory directly inside __reports without subfolders
-DEST_DIR="/mnt/backupserver/__reports"
-mkdir -p "$DEST_DIR"
-LOG_FILE="$DEST_DIR/${ORDER_NUM}_FM2_Report.log"
+# ==========================================
+# OFFLINE / ONLINE LOGIC
+# ==========================================
+if mountpoint -q /mnt/backupserver; then
+    DEST_DIR="/mnt/backupserver/__reports"
+    mkdir -p "$DEST_DIR"
+    LOG_FILE="$DEST_DIR/${ORDER_NUM}_FM2_Report.log"
+    echo -e "\n${GREEN}Report will be saved in: $LOG_FILE${NC}"
+    NETWORK_LOG=true
+else
+    echo -e "\n${YELLOW}Warning: Backup server not mounted. Running in offline mode.${NC}"
+    LOG_FILE="/tmp/${ORDER_NUM}_FM2_Report.log"
+    echo -e "${YELLOW}Report will be saved locally to: $LOG_FILE (Lost on reboot)${NC}"
+    NETWORK_LOG=false
+fi
 
+# Create the log file header
 {
     echo "=================================================="
     echo " FurMark 2 Test Report - Order: $ORDER_NUM"
@@ -32,7 +44,6 @@ echo -e "\n[ GPU Information ]" >> "$LOG_FILE"
 lspci | grep -E "VGA|3D" >> "$LOG_FILE"
 echo "--------------------------------------------------" >> "$LOG_FILE"
 
-echo -e "\n${GREEN}Report will be saved in: $LOG_FILE${NC}"
 echo -e "\n${YELLOW}Starting 10-minute Vulkan stress test...${NC}"
 echo -e "Let the test finish! It will close automatically and save the result after exactly 10 minutes."
 echo -e "\nPress Enter to start."
@@ -43,6 +54,12 @@ timeout 10m /usr/local/bin/furmark2/furmark --demo furmark-vk --benchmark --max-
 
 echo -e "\n${CYAN}==================================================${NC}"
 echo -e "${GREEN}The test is complete!${NC}"
-echo -e "The result has been saved on the server in: $LOG_FILE"
+
+if [ "$NETWORK_LOG" = true ]; then
+    echo -e "The result has been saved on the server in: $LOG_FILE"
+else
+    echo -e "The result has been saved locally in: $LOG_FILE"
+fi
+
 echo -e "${CYAN}==================================================${NC}"
 # EOF

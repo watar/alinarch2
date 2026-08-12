@@ -3,8 +3,8 @@
 # Script:      macbackup
 # Description: Safely copies user data from mounted macOS drives, excluding specific system folders.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.1.0
-# Date:        2026-05-25
+# Version:     2.1.11
+# Date:        2026-008-11
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh

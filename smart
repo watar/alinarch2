@@ -3,8 +3,8 @@
 # Script:      smart
 # Description: Performs S.M.A.R.T health checks on physical storage drives and logs the results.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.4
-# Date:        2026-05-25
+# Version:     2.1.11
+# Date:        2026-008-11
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh

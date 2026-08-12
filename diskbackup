@@ -3,8 +3,8 @@
 # Script:      diskbackup
 # Description: Safely copies user data from mounted Windows partitions to a chosen destination.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.1.1
-# Date:        2026-05-25
+# Version:     2.1.11
+# Date:        2026-008-11
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -13,7 +13,14 @@ source /usr/local/bin/alina-env.sh
 # INITIALIZATION
 # ==========================================
 alina_header "WINDOWS DISK BACKUP UTILITY"
-check_mount
+
+# Evaluate Backup Server Status (Replaces hard-abort check_mount)
+if mountpoint -q /mnt/backupserver; then
+    SERVER_MOUNTED=true
+else
+    echo -e "${YELLOW}WARNING: Backup server is NOT mounted! You must choose a local or custom destination.${NC}"
+    SERVER_MOUNTED=false
+fi
 
 # Get Order Number (used for the backup folder name)
 DEST_INPUT="$1"
@@ -90,6 +97,10 @@ while true; do
     read -p "Enter a number [0-6] (or press Enter for default): " dest_choice
     case $dest_choice in
         0|"") 
+           if [ "$SERVER_MOUNTED" = false ]; then
+               echo -e "${RED}Error: Backup server is offline. Please choose a local drive [1-5] or [6] to abort.${NC}"
+               continue
+           fi
            BASE_DEST="/mnt/backupserver"
            dest_choice="0" # Ensures downstream formatting logic recognizes the server
            break 
@@ -206,10 +217,32 @@ done
 
 echo -e "\n${YELLOW}Starting file copy (This may take some time)...${NC}\n"
 
+# Phase 1: Main Copy (Preserves symlinks to avoid infinite junction loops)
 rsync -avuS --progress --numeric-ids \
       --no-owner --no-group --no-perms --chmod=u=rwX \
       "${RSYNC_EXCLUDES[@]}" \
       . "$DEST"
+
+# ==========================================
+# 4. EXPLICIT ONEDRIVE COPY
+# ==========================================
+echo -e "\n${YELLOW}Checking for OneDrive cloud links to resolve...${NC}"
+
+# Iterate through Users directories to find OneDrive folders
+for user_dir in Users/*; do
+    if [ -d "$user_dir" ]; then
+        for onedrive_path in "$user_dir"/OneDrive*; do
+            if [ -e "$onedrive_path" ] || [ -L "$onedrive_path" ]; then
+                echo -e "${WHITE}Resolving OneDrive data for $user_dir...${NC}"
+                # Phase 2: Targeted Copy with -L to specifically force rsync to follow the OneDrive symlinks
+                rsync -avuLS --progress --numeric-ids \
+                      --no-owner --no-group --no-perms --chmod=u=rwX \
+                      "${RSYNC_EXCLUDES[@]}" \
+                      "$onedrive_path/" "$DEST/$onedrive_path/"
+            fi
+        done
+    fi
+done
 
 echo -e "\n${CYAN}==================================================${NC}"
 echo -e "${GREEN}Copy complete and permissions adjusted.${NC}"

@@ -3,8 +3,8 @@
 # Script:      alina-env.sh
 # Description: Global environment variables and standard functions for Alina Arch.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.0.4
-# Date:        2026-05-25
+# Version:     2.1.11
+# Date:        2026-08-11
 # ==============================================================================
 
 # 1. UNIFIED COLOR PALETTE
