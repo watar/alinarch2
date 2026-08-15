@@ -6,6 +6,38 @@ E-POST: ralf.rangedahl@alina.se
 ==================================================
 
 Version:     2.1.9
+Date:        2026-08-13
+
+SYSTEM & CORE (Archiso)
+-----------------------
+* Inbyggt stöd för OneDrive: Integrerade pluginet 'ntfs-3g-onedrive' direkt i ISO-bygget. LiveCD:n kan nu läsa och montera Windows 10/11 "Files On-Demand" (reparse points) utan att behandla dem som trasiga symlinks.
+* Dynamisk nätverksdelning: Lade till paketen 'samba' och 'wsdd'. LiveCD:n sänder nu automatiskt ut monterade diskar (som /mnt/disk1) säkert över det lokala nätverket till Windows-datorer.
+* Fix för terminalsession: Löste buggen med en oändlig loop i autostart-profilen. När man avslutar menyn hamnar man nu direkt i en fungerande terminalsession.
+
+MAIN MENU ('menu' v2.1.14)
+-----------------------
+* Automatiserad SMB-delning: Menyn konfigurerar och startar nu i tysthet en säker Samba-nätverksdelning i bakgrunden vid uppstart, låst till användaren 'root'.
+* Gränssnitt & navigering: Navigeringsknapparna är nu versaler (X för att avsluta, R för omstart, Q för avstängning). Alternativ 14 har uttryckligen döpts om till "Change Ordernumber". 
+* S.M.A.R.T. Health Check: Förfinade logiken för hårdvarukontrollen så att den känner av tomma anslutningar, och visar en tydlig varning ("No physical disks detected") istället för att ge falska SMART-fel.
+
+BACKUP UTILITIES ('diskbackup' & 'userbackup' v2.1.12)
+-----------------------
+* Offline-flexibilitet: Tog bort det hårda nätverksstoppet. Tekniker kan nu utföra lokala eller anpassade backuper (t.ex. till USB-minnen) även när backupservern är offline.
+* Avancerad OneDrive-kopiering: Lade till en riktad sekundär rsync-fas specifikt för OneDrive-mappar för att säkerställa att lokala molnfiler kopieras fysiskt.
+* Smart molnhantering: Båda skripten hoppar nu snyggt över trasiga symlinks i Windows-profiler (som 'Default User') för att förhindra krascher. De fångar även upp rsync Error 23 och varnar teknikern i klartext om kundens data enbart existerar i Microsoft-molnet.
+* Förbättrad filtrering av Windows-appar: Ersatte specifika app-undantag (som Candy Crush och TikTok) med en heltäckande regel som nu exkluderar hela 'AppData/Local/Packages'-mappen. Detta snabbar upp kopieringen avsevärt och sparar mycket utrymme.
+* Exkludering av Antivirus-cache: Lade till nya globala exkluderingar för tunga och onödiga mappar från Norton, AVG, Avast och McAfee (både i AppData/Local och LocalLow). Detta förhindrar att enorma mängder skräpdata, loggar och virussignaturer kopieras i onödan.
+
+WINDOWS NETWORK TOOL ('NEW_alina_local_backup.cmd' v2.1)
+-----------------------
+* Säker autentisering: Uppdaterade monteringslogiken ('net use') för att ansluta mot LiveCD:ns nya säkra Samba-delning med 'root'-uppgifter, vilket ersätter den gamla osäkra gäståtkomsten.
+
+DEPLOYMENT & MAINTENANCE ('deploy-iso' v1.4.5 & 'backup-alina' v2.0.13)
+-----------------------
+* VPN-integration: Migrerade distributionsmålen till Tailscale VPN IP-adresser, vilket helt eliminerar behovet av att hoppa mellan olika Wi-Fi-nätverk under ISO-utrullningar.
+* Standardiserade sökvägar: Enhetlig målsökväg för distributionen till '/tools/ISO/Arch/' för samtliga servrar (Enköping, Uppsala, Norrköping).
+* Terminalkompatibilitet: Tog bort emojis från distributions- och backupskripten för att säkerställa en ren och korrekt terminalutskrift i alla miljöer.
+Version:     2.1.9
 Datum:       2026-08-12
 
 SYSTEM & CORE (Archiso)

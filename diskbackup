@@ -3,8 +3,8 @@
 # Script:      diskbackup
 # Description: Safely copies user data from mounted Windows partitions to a chosen destination.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.1.11
-# Date:        2026-008-11
+# Version:     2.1.13
+# Date:        2026-08-15
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -202,12 +202,15 @@ EXCLUDES=(
     "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/*[cC]ache*" "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/CacheStorage"
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/*[cC]ache*" "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/CacheStorage"
     "*[aA]pp[dD]ata/[lL]ocal/Mozilla/[fF]irefox/**/*[cC]ache*" "*[aA]pp[dD]ata/[lL]ocal/Spotify/[sS]torage" "*[aA]pp[dD]ata/[rR]oaming/discord/[cC]ache"
-    "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[lL]ocal[cC]ache" "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[aA][cC]" "*[aA]pp[dD]ata/[lL]ocal/Packages/*/[tT]emp[sS]tate"
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[wW]eb[cC]ache" "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[iI]Net[cC]ache"
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[wW]indows/[eE]xplorer/thumbcache_*.db" "*[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[cC]ache"
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/Teams/[aA]pp[cC]ache"
-    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[cC]andy[cC]rush*" "*[aA]pp[dD]ata/[lL]ocal/Packages/*[kK]ing.com*" "*[aA]pp[dD]ata/[lL]ocal/Packages/*[bB]ubble[wW]itch*"
-    "*[aA]pp[dD]ata/[lL]ocal/Packages/*[aA]ngry[bB]irds*" "*[aA]pp[dD]ata/[lL]ocal/Packages/*[tT]ik[tT]ok*"
+    "*[aA]pp[dD]ata/[lL]ocal/Packages"
+    "*[aA]pp[dD]ata/[lL]ocal/[nN]orton"
+    "*[aA]pp[dD]ata/[lL]ocal/[aA][vV][gG]"
+    "*[aA]pp[dD]ata/[lL]ocal/[aA]vast [sS]oftware"
+    "*[aA]pp[dD]ata/[lL]ocal/[mM]c[aA]fee"
+    "*[aA]pp[dD]ata/[lL]ocal[lL]ow/[nN]orton"
 )
 
 RSYNC_EXCLUDES=()
