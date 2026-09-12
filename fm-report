@@ -3,8 +3,8 @@
 # Script:      fm-report
 # Description: Runs a FurMark 2 GPU burn-in test and logs the hardware performance output.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.1.11
-# Date:        2026-008-11
+# Version:     2.2.5
+# Date:        2026-09-07
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -15,6 +15,9 @@ source /usr/local/bin/alina-env.sh
 alina_header "GPU BURN-IN & STRESS TEST (FurMark 2)"
 check_mount
 get_order_num
+
+FURMARK_BIN="/usr/local/bin/furmark2/furmark" 
+CLI_LOG="/tmp/furmark_cli.txt"
 
 # ==========================================
 # OFFLINE / ONLINE LOGIC
@@ -32,27 +35,48 @@ else
     NETWORK_LOG=false
 fi
 
-# Create the log file header
+echo -e "\n${YELLOW}Starting 10-minute Vulkan stress test...${NC}"
+echo -e "Press ESC if you need to abort early due to thermals.\n"
+
+# Visual 10-second countdown
+for i in {10..1}; do
+    echo -ne "\r${YELLOW}Starting in $i seconds...${NC} "
+    sleep 1
+done
+echo -e "\r${GREEN}Starting now...             ${NC}\n"
+
+# Run FurMark 2, capturing terminal output to temporary file
+$FURMARK_BIN --demo furmark-vk --width 1920 --height 1080 --max-time 600 2>&1 | tee "$CLI_LOG"
+
+echo -e "\n${CYAN}==================================================${NC}"
+echo -e "${GREEN}Test finished. Generating report...${NC}"
+
+# Extract the generic GPU chip name from the CLI log
+GPU_NAME=$(grep -i "^- renderer" "$CLI_LOG" | awk -F ':' '{print $2}' | sed 's/^[ \t]*//')
+
+# Extract the OEM Brand and Model Subsystem using lspci
+OEM_INFO=$(lspci -v | grep -i 'VGA\|3D' -A 2 | grep -i "Subsystem" | head -n 1 | sed 's/^[ \t]*Subsystem:[ \t]*//')
+
+if [ -z "$OEM_INFO" ]; then
+    OEM_INFO="OEM data not detected by PCI"
+fi
+
+# Create the final formatted log file
 {
     echo "=================================================="
     echo " FurMark 2 Test Report - Order: $ORDER_NUM"
     echo " Date: $(date)"
     echo "=================================================="
+    echo "Graphics Chip: $GPU_NAME"
+    echo "Brand/Model: $OEM_INFO"
+    echo "--------------------------------------------------"
+    # Exclude the "[ Demo Quick Stats ]" line from the appended output
+    grep -v "\[ Demo Quick Stats \]" "$CLI_LOG"
 } > "$LOG_FILE"
 
-echo -e "\n[ GPU Information ]" >> "$LOG_FILE"
-lspci | grep -E "VGA|3D" >> "$LOG_FILE"
-echo "--------------------------------------------------" >> "$LOG_FILE"
+# Clean up temporary files
+rm -f "$CLI_LOG"
 
-echo -e "\n${YELLOW}Starting 10-minute Vulkan stress test...${NC}"
-echo -e "Let the test finish! It will close automatically and save the result after exactly 10 minutes."
-echo -e "\nPress Enter to start."
-read -r
-
-# Use Linux timeout to exit FurMark after 10 minutes (600 seconds)
-timeout 10m /usr/local/bin/furmark2/furmark --demo furmark-vk --benchmark --max-time 600000 2>&1 | tee -a "$LOG_FILE"
-
-echo -e "\n${CYAN}==================================================${NC}"
 echo -e "${GREEN}The test is complete!${NC}"
 
 if [ "$NETWORK_LOG" = true ]; then
@@ -60,6 +84,5 @@ if [ "$NETWORK_LOG" = true ]; then
 else
     echo -e "The result has been saved locally in: $LOG_FILE"
 fi
-
 echo -e "${CYAN}==================================================${NC}"
 # EOF

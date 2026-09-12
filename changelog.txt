@@ -5,6 +5,27 @@ KONTAKT: Ralf R.
 E-POST: ralf.rangedahl@alina.se
 ==================================================
 
+Version:     2.2.0
+Date:        2026-09-04
+
+SYSTEM & CORE (Archiso)
+-----------------------
+* Native BitLocker Integration: Tog bort det instabila 'dislocker'-verktyget och dess beroenden helt från ISO-bygget och det egna lokala kodarkivet (custom_repo). Gick istället över till Arch Linux inbyggda och moderna 'cryptsetup', vilket ger en mycket snabbare och stabilare BitLocker-upplåsning direkt i operativsystemet.
+
+BITLOCKER UTILITY ('bitlocker' v2.2.0)
+-----------------------
+* Omskrivning för Cryptsetup: Skrev om hela dekrypteringslogiken för att utnyttja 'cryptsetup'. Lade till dynamisk namngivning (mapper-hantering) för att undvika systemkonflikter, vilket gör att du nu kan låsa upp och montera flera BitLocker-diskar samtidigt.
+* Automatisk Nätverkssynk: Skriptet startar nu i tysthet om Samba-tjänsten vid en framgångsrik upplåsning. Detta säkerställer att den nyligen dekrypterade disken omedelbart blir tillgänglig över nätverket för dina Windows-maskiner.
+
+Version:     2.1.10
+Date:        2026-08-15
+==============================================================================
+
+BACKUP UTILITIES ('diskbackup' & 'userbackup' v2.1.13)
+-----------------------
+* Förbättrad filtrering av Windows-appar: Ersatte specifika app-undantag (som Candy Crush och TikTok) med en heltäckande regel som nu exkluderar hela 'AppData/Local/Packages'-mappen. Detta snabbar upp kopieringen avsevärt och sparar mycket utrymme.
+* Exkludering av Antivirus-cache: Lade till nya globala exkluderingar för tunga och onödiga mappar från Norton, AVG, Avast och McAfee (både i AppData/Local och LocalLow). Detta förhindrar att enorma mängder skräpdata, loggar och virussignaturer kopieras i onödan.
+
 Version:     2.1.9
 Date:        2026-08-13
 
@@ -32,12 +53,7 @@ WINDOWS NETWORK TOOL ('NEW_alina_local_backup.cmd' v2.1)
 -----------------------
 * Säker autentisering: Uppdaterade monteringslogiken ('net use') för att ansluta mot LiveCD:ns nya säkra Samba-delning med 'root'-uppgifter, vilket ersätter den gamla osäkra gäståtkomsten.
 
-DEPLOYMENT & MAINTENANCE ('deploy-iso' v1.4.5 & 'backup-alina' v2.0.13)
------------------------
-* VPN-integration: Migrerade distributionsmålen till Tailscale VPN IP-adresser, vilket helt eliminerar behovet av att hoppa mellan olika Wi-Fi-nätverk under ISO-utrullningar.
-* Standardiserade sökvägar: Enhetlig målsökväg för distributionen till '/tools/ISO/Arch/' för samtliga servrar (Enköping, Uppsala, Norrköping).
-* Terminalkompatibilitet: Tog bort emojis från distributions- och backupskripten för att säkerställa en ren och korrekt terminalutskrift i alla miljöer.
-Version:     2.1.9
+Version:     2.1.8
 Datum:       2026-08-12
 
 SYSTEM & CORE (Archiso)

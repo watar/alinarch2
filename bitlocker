@@ -1,10 +1,10 @@
 #!/bin/bash
 # ==============================================================================
 # Script:      bitlocker
-# Description: Decrypts and mounts Windows BitLocker partitions using dislocker.
+# Description: Decrypts and mounts BitLocker partitions using cryptsetup.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.1.11
-# Date:        2026-008-11
+# Version:     2.2.8
+# Date:        2026-09-07
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -14,86 +14,116 @@ source /usr/local/bin/alina-env.sh
 # ==========================================
 alina_header "BITLOCKER MOUNT TOOL"
 
-# Show available partitions
+# ==========================================
+# 1. SELECT PARTITION
+# ==========================================
+echo -e "\n${CYAN}[ SELECT PARTITION ]${NC}"
 echo -e "${WHITE}Available partitions:${NC}"
-lsblk -o NAME,SIZE,TYPE,FSTYPE | grep -i "part"
+lsblk -o NAME,SIZE,TYPE,FSTYPE | grep -iE "part|bitlocker|ntfs|exfat"
 
-echo -e "\n${CYAN}--------------------------------------------------${NC}"
-read -r -p "Enter the partition to decrypt (e.g., sda3): " SRC_INPUT
-
-if [[ -z "$SRC_INPUT" ]]; then
-    echo -e "${RED}No partition entered. Aborting.${NC}"
-    exit 1
-fi
-
-# Smart logic: Automatically add /dev/ if it is missing
-if [[ "$SRC_INPUT" == /dev/* ]]; then
-    SRC_PART="$SRC_INPUT"
-else
-    SRC_PART="/dev/$SRC_INPUT"
-fi
-
-# Check that the partition exists
-if [ ! -b "$SRC_PART" ]; then
-    echo -e "${RED}Error: Partition $SRC_PART does not exist!${NC}"
-    exit 1
-fi
-
-echo -e "\n${WHITE}Choose a mount destination:${NC}"
-echo "  1) disk1"
-echo "  2) disk2"
-echo "  3) disk3"
-echo "  4) disk4"
 echo "--------------------------------------------------"
+read -p "Enter the partition to decrypt (e.g., sda3): " PARTITION
+
+if [ ! -b "/dev/$PARTITION" ]; then
+    echo -e "${RED}Error: /dev/$PARTITION is not a valid block device.${NC}"
+    exit 1
+fi
+
+# ==========================================
+# 2. SELECT DESTINATION
+# ==========================================
+echo -e "\n${CYAN}[ SELECT DESTINATION ]${NC}"
+echo -e "${WHITE}Choose a mount destination:${NC}"
+echo "  1. disk1"
+echo "  2. disk2"
+echo "  3. disk3"
+echo "  4. disk4"
+echo "--------------------------------------------------"
+
 while true; do
-    read -r -p "Enter a number [1-4]: " DEST_CHOICE
-    case $DEST_CHOICE in
-        1) DEST_MOUNT="/mnt/disk1"; break ;;
-        2) DEST_MOUNT="/mnt/disk2"; break ;;
-        3) DEST_MOUNT="/mnt/disk3"; break ;;
-        4) DEST_MOUNT="/mnt/disk4"; break ;;
-        *) echo -e "${RED}Invalid choice. Try again.${NC}" ;;
+    read -p "Enter a number [1-4]: " dest_num
+    case $dest_num in
+        1) MOUNT_DEST="disk1"; break ;;
+        2) MOUNT_DEST="disk2"; break ;;
+        3) MOUNT_DEST="disk3"; break ;;
+        4) MOUNT_DEST="disk4"; break ;;
+        *) echo -e "${RED}Invalid option! Try again.${NC}" ;;
     esac
 done
 
-echo -e "${GREEN}You selected $DEST_MOUNT${NC}"
+echo -e "${GREEN}You selected /mnt/$MOUNT_DEST${NC}"
 
-# The hidden folder where dislocker creates its virtual file
-DECRYPT_DIR="/mnt/.dislocker"
+# ==========================================
+# 3. FETCH RECOVERY KEY
+# ==========================================
+echo -e "\n${CYAN}[ FETCH RECOVERY KEY ]${NC}"
 
-# Create the folders if they don't exist
-mkdir -p "$DECRYPT_DIR"
-mkdir -p "$DEST_MOUNT"
-
-# Unmount the hidden folder if a previous test got stuck
-if mountpoint -q "$DECRYPT_DIR"; then
-    umount "$DECRYPT_DIR"
+if [[ -z "$ORDER_NUM" ]]; then
+    get_order_num
 fi
 
-echo -e "\n${CYAN}--------------------------------------------------${NC}"
-read -r -p "Enter BitLocker Recovery Key (48 digits): " BL_KEY
-echo ""
+echo -e "${WHITE}Söker efter nyckel för order: ${ORDER_NUM}${NC}"
+RECOVERY_KEY=""
 
-echo -e "${YELLOW}Step 1: Decrypting BitLocker volume ($SRC_PART)...${NC}"
-dislocker -V "$SRC_PART" -p"$BL_KEY" -- "$DECRYPT_DIR"
+if [ -n "$ORDER_NUM" ]; then
+    KEY_FILE="/mnt/backupserver/__bitlocker_keys/${ORDER_NUM}.txt"
 
-# Check if decryption succeeded by looking for the file dislocker creates
-if [ ! -f "$DECRYPT_DIR/dislocker-file" ]; then
-    echo -e "${RED}Decryption failed. Check your recovery key.${NC}"
+    if [ -f "$KEY_FILE" ]; then
+        echo -e "${YELLOW}Hittade fil: $KEY_FILE${NC}"
+        
+        # Tvättar filen från eventuell Windows UTF-16 formatering (\0) och radbrytningar (\r) innan vi söker
+        RECOVERY_KEY=$(cat "$KEY_FILE" | tr -d '\0\r' | grep -oE '([0-9]{6}-){7}[0-9]{6}' | head -n 1)
+        
+        if [ -n "$RECOVERY_KEY" ]; then
+            echo -e "${GREEN}Hämtade nyckel automatiskt: $RECOVERY_KEY${NC}"
+        else
+            echo -e "${RED}Filen existerar, men ingen giltig 48-siffrig nyckel hittades.${NC}"
+        fi
+    else
+        echo -e "${YELLOW}Hittade ingen nyckelfil i __bitlocker_keys för denna order.${NC}"
+    fi
+fi
+
+if [ -z "$RECOVERY_KEY" ]; then
+    echo "--------------------------------------------------"
+    read -p "Ange BitLocker-nyckel manuellt (48 siffror): " RECOVERY_KEY
+    
+    if ! [[ "$RECOVERY_KEY" =~ ^([0-9]{6}-){7}[0-9]{6}$ ]]; then
+        echo -e "${YELLOW}Varning: Nyckeln matchar inte standardformatet (48 siffror). Försöker ändå...${NC}"
+    fi
+fi
+
+# ==========================================
+# 4. DECRYPT & MOUNT
+# ==========================================
+echo -e "\n${CYAN}[ DECRYPTING & MOUNTING ]${NC}"
+echo -e "${YELLOW}Step 1: Decrypting BitLocker volume (/dev/$PARTITION)...${NC}"
+
+MAPPER_NAME="bitlk_${PARTITION}"
+
+if [ -e "/dev/mapper/$MAPPER_NAME" ]; then
+    sudo cryptsetup close "$MAPPER_NAME" 2>/dev/null
+fi
+
+echo "$RECOVERY_KEY" | sudo cryptsetup bitlkOpen "/dev/$PARTITION" "$MAPPER_NAME" -d -
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Decryption failed. Check your recovery key or file content.${NC}"
     exit 1
 fi
 
-echo -e "${YELLOW}Step 2: Mounting the decrypted file system...${NC}"
-# Mount the virtual ntfs file to the visible folder
-mount -o loop "$DECRYPT_DIR/dislocker-file" "$DEST_MOUNT"
+echo -e "${YELLOW}Step 2: Mounting decrypted volume to /mnt/$MOUNT_DEST...${NC}"
+
+sudo mkdir -p "/mnt/$MOUNT_DEST"
+sudo mount -t ntfs-3g "/dev/mapper/$MAPPER_NAME" "/mnt/$MOUNT_DEST"
 
 if [ $? -eq 0 ]; then
-    echo -e "\n${CYAN}==================================================${NC}"
-    echo -e "${GREEN}Success! The drive is decrypted and mounted at $DEST_MOUNT${NC}"
-    echo -e "You can now browse the files or run your diskbackup script."
-    echo -e "${CYAN}==================================================${NC}"
+    echo -e "\n${GREEN}==================================================${NC}"
+    echo -e "${GREEN}Success! BitLocker volume is mounted and ready.${NC}"
+    echo -e "${GREEN}==================================================${NC}"
+    sudo systemctl restart smb
 else
-    echo -e "${RED}Failed to mount the decrypted file system.${NC}"
+    echo -e "\n${RED}Mount failed. The volume was decrypted but the filesystem could not be mounted.${NC}"
+    sudo cryptsetup close "$MAPPER_NAME"
     exit 1
 fi
-# EOF
