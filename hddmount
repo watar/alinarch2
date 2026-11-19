@@ -3,8 +3,8 @@
 # Script:      hddmount
 # Description: Universal disk mount utility for detecting, repairing, and safely mounting filesystems.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.1.11
-# Date:        2026-008-11
+# Version:     2.1.12
+# Date:        2026-11-19
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -89,10 +89,15 @@ echo -e "${WHITE}Discovered file system:${NC} ${YELLOW}${FSTYPE:-Unknown/Encrypt
 # Choose mounting method based on file system
 case "${FSTYPE,,}" in
     ntfs)
-        echo -e "${YELLOW}Repairing NTFS journal (ntfsfix)...${NC}"
-        ntfsfix "$SRC1"
-        echo -e "${YELLOW}Mounting NTFS and clearing hibernation file (hiberfile)...${NC}"
-        mount -t ntfs-3g "$SRC1" "$DEST" -o remove_hiberfile
+        echo -e "${YELLOW}Mounting NTFS file system...${NC}"
+        # Försök först med ntfs3
+        if ! mount -t ntfs3 "$SRC1" "$DEST" 2>/dev/null; then
+            echo -e "${YELLOW}Disk dirty (Fast Startup/Crash). Repairing journal with ntfsfix...${NC}"
+            ntfsfix -d "$SRC1"
+            echo -e "${YELLOW}Retrying mount...${NC}"
+            # Använd force som fallback om ntfsfix inte lyckas rensa allt
+            mount -t ntfs3 -o force "$SRC1" "$DEST"
+        fi
         ;;
     vfat|fat16|fat32|exfat)
         echo -e "${YELLOW}Mounting FAT/exFAT file system...${NC}"

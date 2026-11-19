@@ -3,8 +3,8 @@
 # Script:      menu
 # Description: Categorized interactive main menu for Alina Diagnostics.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.1.14
-# Date:        2026-08-12
+# Version:     2.1.15
+# Date:        2026-10-16
 # ==============================================================================
 
 # --- COLOR PALETTE ---
@@ -97,23 +97,24 @@ while true; do
     echo -e "${CYAN}[ Disk Management & Backup ]${NC}"
     echo -e "  6. Mount Disk                         (hddmount)"
     echo -e "  7. Disk Backup                        (diskbackup)"
-    echo -e "  8. User Backup                        (userbackup)"
-    echo -e "  9. Mount macOS Drive                  (macmount)"
-    echo -e " 10. macOS Backup                       (macbackup)"
+    echo -e "  8. Clone / Image Disk                 (clone-disk)"
+    echo -e "  9. User Backup                        (userbackup)"
+    echo -e " 10. Mount macOS Drive                  (macmount)"
+    echo -e " 11. macOS Backup                       (macbackup)"
     
     # CATEGORY 3: SYSTEM UTILITIES (WINDOWS)
     echo -e "${CYAN}[ System Utilities (Windows) ]${NC}"
-    echo -e " 11. BitLocker Unlock                   (bitlocker)"
-    echo -e " 12. Windows Info & Keys                (winver)"
-    echo -e " 13. Reset Windows Password             (ntpass)"
+    echo -e " 12. BitLocker Unlock                   (bitlocker)"
+    echo -e " 13. Windows Info & Keys                (winver)"
+    echo -e " 14. Reset Windows Password             (ntpass)"
     echo -e "${CYAN}--------------------------------------------------${NC}"
     
     # CATEGORY 4: SESSION MANAGEMENT
-    echo -e " 14. Change Ordernumber  15. Remount Server"
+    echo -e " 15. Change Ordernumber  16. Remount Server"
     echo -e "  X. Exit Menu            R. Reboot System"
     echo -e "  Q. Shutdown System"
     echo -e "${CYAN}==================================================${NC}"
-    read -p "Select option [1-15, X, R, Q]: " choice
+    read -p "Select option [1-16, X, R, Q]: " choice
 
     case $choice in
         # Hardware & Diagnostics
@@ -129,21 +130,22 @@ while true; do
         # Disk Management & Backup
         6) /usr/local/bin/hddmount ;;
         7) /usr/local/bin/diskbackup ;;
-        8) /usr/local/bin/userbackup ;;
-        9) /usr/local/bin/macmount ;;
-        10) /usr/local/bin/macbackup ;;
+        8) /usr/local/bin/clone-disk ;;
+        9) /usr/local/bin/userbackup ;;
+        10) /usr/local/bin/macmount ;;
+        11) /usr/local/bin/macbackup ;;
         
         # System Utilities (Windows)
-        11) /usr/local/bin/bitlocker ;;
-        12) /usr/local/bin/winver ;;
-        13) /usr/local/bin/ntpass ;;
+        12) /usr/local/bin/bitlocker ;;
+        13) /usr/local/bin/winver ;;
+        14) /usr/local/bin/ntpass ;;
         
         # Session Management
-        14) 
+        15) 
             rm -f /tmp/alina_order
             continue 
             ;;
-        15) /usr/local/bin/backupserver_mount.sh ;;
+        16) /usr/local/bin/backupserver_mount.sh ;;
         x|X) 
             clear
             exit 0
@@ -153,9 +155,9 @@ while true; do
         *) echo -e "${RED}Invalid option!${NC}"; sleep 1 ;;
     esac
     
-    # Pause after tools 1-13 AND 15 so the tech has time to see output.
+    # Pause after tools 1-14 AND 16 so the tech has time to see output.
     # The regex ^[0-9]+$ ensures we only do integer comparisons on actual numbers.
-    if [[ "$choice" =~ ^[0-9]+$ ]] && { [[ "$choice" -ge 1 && "$choice" -le 13 ]] || [[ "$choice" -eq 15 ]]; }; then
+    if [[ "$choice" =~ ^[0-9]+$ ]] && { [[ "$choice" -ge 1 && "$choice" -le 14 ]] || [[ "$choice" -eq 16 ]]; }; then
         echo -e "\nPress Enter to return to Menu..."
         read -r
     fi

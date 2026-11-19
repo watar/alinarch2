@@ -3,8 +3,8 @@
 # Script:      diskbackup
 # Description: Safely copies user data from mounted Windows partitions to a chosen destination.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.1.13
-# Date:        2026-08-15
+# Version:     2.1.14
+# Date:        2026-11-19
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -25,7 +25,16 @@ fi
 # Get Order Number (used for the backup folder name)
 DEST_INPUT="$1"
 if [[ -z "$DEST_INPUT" ]]; then
-    get_order_num
+    # 1. Försök läsa ordernumret som sparades av menyn
+    if [ -f "/tmp/alina_order" ]; then
+        ORDER_NUM=$(cat /tmp/alina_order)
+    fi
+    
+    # 2. Om ordernumret fortfarande saknas, fråga manuellt
+    if [ -z "$ORDER_NUM" ]; then
+        get_order_num
+    fi
+    
     DEST_INPUT="$ORDER_NUM"
 fi
 
@@ -190,7 +199,8 @@ EXCLUDES=(
     "[wW][iI][nN][dD][oO][wW][sS]10[uU]pgrade" "[wW][iI][nN][dD][oO][wW][sS]/\$NtUninstall*\$" "[wW][iI][nN][dD][oO][wW][sS]/ServicePackFiles"
     "[wW][iI][nN][dD][oO][wW][sS]/ie8updates" "[wW][iI][nN][dD][oO][wW][sS]/KB9*.log" "[wW][iI][nN][dD][oO][wW][sS]/[sS]ervicing"
     "[wW][iI][nN][dD][oO][wW][sS]/[sS]system32/[rR]einstall[bB]ackups" "SoftwareDistribution/Download" "SoftwareDistribution/DataStore" "\$hf_mig\$" "*[cC]atroot"
-    "NVIDIA/DisplayDriver" "Program Files/F-Secure Internet Security" "ProgramData/Microsoft/OEMOffice14" "ProgramData/Microsoft/Office14"
+    "NVIDIA/DisplayDriver" "Program Files/F-Secure Internet Security" "Program Files/WindowsApps"
+    "ProgramData/Microsoft/OEMOffice14" "ProgramData/Microsoft/Office14"
     "ProgramData/Microsoft/OEMOffice15" "ProgramData/Microsoft/Office15" "ProgramData/Microsoft/OEMOffice16" "ProgramData/Microsoft/Office16"
     "ProgramData/Microsoft/ClickToRun" "ProgramData/Microsoft/[wW]indows [dD]efender/[sS]cans"
     "[wW][iI][nN][dD][oO][wW][sS]/[wW]in[sS]x[sS]" "[wW][iI][nN][dD][oO][wW][sS]/[hH]elp" "[wW][iI][nN][dD][oO][wW][sS]/SysWOW64"
@@ -221,7 +231,7 @@ done
 echo -e "\n${YELLOW}Starting file copy (This may take some time)...${NC}\n"
 
 # Phase 1: Main Copy (Preserves symlinks to avoid infinite junction loops)
-rsync -avuS --progress --numeric-ids \
+rsync -ahuS --no-links --info=progress2 --info=nonreg0 --no-i-r --numeric-ids \
       --no-owner --no-group --no-perms --chmod=u=rwX \
       "${RSYNC_EXCLUDES[@]}" \
       . "$DEST"
@@ -238,7 +248,7 @@ for user_dir in Users/*; do
             if [ -e "$onedrive_path" ] || [ -L "$onedrive_path" ]; then
                 echo -e "${WHITE}Resolving OneDrive data for $user_dir...${NC}"
                 # Phase 2: Targeted Copy with -L to specifically force rsync to follow the OneDrive symlinks
-                rsync -avuLS --progress --numeric-ids \
+                rsync -ahuLS --info=progress2 --no-i-r --numeric-ids \
                       --no-owner --no-group --no-perms --chmod=u=rwX \
                       "${RSYNC_EXCLUDES[@]}" \
                       "$onedrive_path/" "$DEST/$onedrive_path/"

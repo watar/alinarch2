@@ -4,6 +4,34 @@
 KONTAKT: Ralf R.
 E-POST: ralf.rangedahl@alina.se
 ==================================================
+Version: 2.2.2
+Datum: 2026-11-19
+
+Diskhantering & Montering (hddmount)
+-----------------------
+* Ny NTFS-drivrutin: Övergång från ntfs-3g till den inbyggda och betydligt snabbare kärndrivrutinen ntfs3 för överlägsen överföringshastighet.
+* Självläkande montering: Skriptet upptäcker nu automatiskt "dirty" filsystem (p.g.a. Windows Fast Startup eller krascher), kör ntfsfix -d i bakgrunden och gör ett nytt monteringsförsök, så att teknikern slipper felsöka manuellt.
+
+Säkerhetskopiering (diskbackup)
+-----------------------
+* SMB/Symlänk-fix: Löst problemet med "Operation not supported (95)" på backupservern. Skriptet använder nu --no-links i fas 1 för att ignorera gamla Windows-genvägar (som "Documents and Settings") men bevarar funktionen för att tvinga fram OneDrive-molnfiler i fas 2.
+* Optimerad UX: Uppdaterade rsync-flaggor (--info=progress2, --no-i-r) ger nu en ren, enskild och mycket mer lättläst progress bar istället för att spamma terminalen med filnamn.
+* Uppdaterad Blacklist: Lade till Program Files/WindowsApps i exkluderingslistan.
+* Sömlös integration: Skriptet läser nu automatiskt ordernumret från /tmp/alina_order precis som de andra verktygen.
+
+System
+-----------------------
+* Stabilitet: Tog permanent bort det strulande broadcom-wl-paketet från installationslistan för att förhindra krascher vid image-byggandet.
+
+
+Version: 2.2.1
+Datum: 2026-10-16
+
+Disk Clones
+-----------------------
+Nytt verktyg (clone-disk): Ett dedikerat verktyg för att klona diskar (dd under huven) har lagts till. Verktyget hanterar defekta sektorer säkert med conv=noerror,sync.
+Två arbetslägen: Stödjer både skapande av Image-filer (.img) direkt till backupservern och direkt kloning (Disk-till-Disk).
+
 
 Version:     2.2.0
 Date:        2026-09-04

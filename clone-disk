@@ -1,0 +1,151 @@
+#!/bin/bash
+# ==============================================================================
+# Script:      clone-disk
+# Description: Clones disks or creates images using dd.
+# Author:      Ralf R. (ralf.rangedahl@alina.se)
+# Version:     1.2.0
+# Date:        2026-10-16
+# ==============================================================================
+
+source /usr/local/bin/alina-env.sh
+
+# ==========================================
+# INITIALIZATION
+# ==========================================
+alina_header "DISK CLONE & IMAGING TOOL"
+
+# Evaluate Backup Server Status
+if mountpoint -q /mnt/backupserver; then
+    SERVER_MOUNTED=true
+else
+    echo -e "${YELLOW}WARNING: Backup server is NOT mounted! You must choose a local clone option.${NC}"
+    SERVER_MOUNTED=false
+fi
+
+# Get Order Number (used for the image folder/file name)
+DEST_INPUT="$1"
+if [[ -z "$DEST_INPUT" ]]; then
+    if [ -f "/tmp/alina_order" ]; then
+        ORDER_NUM=$(cat /tmp/alina_order)
+    fi
+    if [ -z "$ORDER_NUM" ]; then
+        get_order_num
+    fi
+    DEST_INPUT="$ORDER_NUM"
+fi
+
+# ==========================================
+# 1. SELECT SOURCE
+# ==========================================
+echo -e "\n${CYAN}[ SELECT SOURCE DRIVE ]${NC}"
+echo -e "${WHITE}Which physical disk do you want to clone or image?${NC}"
+lsblk -dno NAME,SIZE,MODEL | grep -v "loop" | awk '{print "  /dev/"$1" - "$2" "$3" "$4}'
+echo "--------------------------------------------------"
+read -p "Enter the SOURCE disk name (e.g., sda): " SOURCE_OPT
+
+SOURCE_DISK="/dev/$SOURCE_OPT"
+if [ ! -b "$SOURCE_DISK" ]; then
+    echo -e "${RED}Error: $SOURCE_DISK is not a valid block device. Aborting.${NC}"
+    exit 1
+fi
+
+# ==========================================
+# 2. SELECT OPERATION
+# ==========================================
+echo -e "\n${CYAN}[ SELECT OPERATION ]${NC}"
+echo -e "${WHITE}What do you want to do with $SOURCE_DISK?${NC}"
+echo "  1. Create Image File (.img) on Backup Server"
+echo "  2. Clone directly to another Disk (Disk-to-Disk)"
+echo "  3. Abort"
+echo "--------------------------------------------------"
+
+while true; do
+    read -p "Enter a number [1-3]: " op_choice
+    case $op_choice in
+        1) 
+           if [ "$SERVER_MOUNTED" = false ]; then
+               echo -e "${RED}Error: Backup server is offline. Choose option 2 or 3.${NC}"
+               continue
+           fi
+           OP_MODE="image"
+           break 
+           ;;
+        2) OP_MODE="clone"; break ;;
+        3) 
+           echo -e "${YELLOW}Operation aborted.${NC}"
+           exit 0 
+           ;;
+        *) 
+           echo -e "${RED}Invalid option! Try again.${NC}" 
+           ;;
+    esac
+done
+
+# ==========================================
+# 3. DESTINATION & EXECUTION
+# ==========================================
+if [[ "$OP_MODE" == "image" ]]; then
+    # -- IMAGE MODE --
+    echo -e "\n${CYAN}[ DESTINATION PATH ]${NC}"
+    BASE_DEST="/mnt/backupserver"
+    DEST_DIR="${BASE_DEST}/${DEST_INPUT}"
+    DEST_PATH="${DEST_DIR}/${DEST_INPUT}_${SOURCE_OPT}.img"
+
+    echo -e "\n${YELLOW}Creating destination folder...${NC}"
+    mkdir -p -v "$DEST_DIR" || { 
+        echo -e "${RED}Failed to create $DEST_DIR. Check permissions or mount status.${NC}"
+        exit 1
+    }
+    
+    echo -e "\n${CYAN}[ READY TO IMAGE ]${NC}"
+    echo -e "From (Source): ${WHITE}$SOURCE_DISK${NC}"
+    echo -e "To (Target):   ${WHITE}$DEST_PATH${NC}"
+    
+    echo -e "\nPress Enter to start the imaging process, or Ctrl+C to abort."
+    read -r
+    
+    echo -e "\n${YELLOW}Starting file copy (This may take some time)...${NC}\n"
+    sudo dd if="$SOURCE_DISK" of="$DEST_PATH" bs=4M status=progress conv=noerror,sync
+
+elif [[ "$OP_MODE" == "clone" ]]; then
+    # -- CLONE MODE --
+    echo -e "\n${CYAN}[ SELECT DESTINATION DISK ]${NC}"
+    echo -e "${WHITE}Available physical disks:${NC}"
+    lsblk -dno NAME,SIZE,MODEL | grep -v "loop" | awk '{print "  /dev/"$1" - "$2" "$3" "$4}'
+    echo "--------------------------------------------------"
+    read -p "Enter the DESTINATION disk (e.g., sdb): " DEST_OPT
+    
+    DEST_DISK="/dev/$DEST_OPT"
+    if [ ! -b "$DEST_DISK" ]; then
+        echo -e "${RED}Error: $DEST_DISK is not a valid block device. Aborting.${NC}"
+        exit 1
+    fi
+    
+    if [ "$SOURCE_DISK" == "$DEST_DISK" ]; then
+        echo -e "\n${RED}ERROR: Destination ($DEST_DISK) cannot be the same as the Source ($SOURCE_DISK)!${NC}"
+        echo "Aborting for safety."
+        exit 1
+    fi
+    
+    echo -e "\n${CYAN}[ READY TO CLONE ]${NC}"
+    echo -e "From (Source): ${WHITE}$SOURCE_DISK${NC}"
+    echo -e "To (Target):   ${WHITE}$DEST_DISK${NC}"
+    
+    echo -e "\n${RED}CRITICAL WARNING: ALL DATA ON $DEST_DISK WILL BE DESTROYED!${NC}"
+    read -p "Type 'YES' to confirm destruction of $DEST_DISK: " conf
+    if [[ "$conf" != "YES" ]]; then 
+        echo -e "${YELLOW}Aborted for safety.${NC}"
+        exit 1
+    fi
+    
+    echo -e "\n${YELLOW}Starting file copy (This may take some time)...${NC}\n"
+    sudo dd if="$SOURCE_DISK" of="$DEST_DISK" bs=4M status=progress conv=noerror,sync
+fi
+
+if [ $? -eq 0 ]; then
+    echo -e "\n${CYAN}==================================================${NC}"
+    echo -e "${GREEN}Operation complete.${NC}"
+    echo -e "${CYAN}==================================================${NC}"
+else
+    echo -e "\n${RED}Operation failed or was interrupted.${NC}"
+fi
