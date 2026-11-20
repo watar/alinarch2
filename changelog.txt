@@ -1,357 +1,183 @@
 ==================================================
        ALINA ARCH LIVECD - CHANGELOG
 ==================================================
-KONTAKT: Ralf R.
-E-POST: ralf.rangedahl@alina.se
+CONTACT: Ralf R. | EMAIL: ralf.rangedahl@alina.se
 ==================================================
-Version: 2.2.2
-Datum: 2026-11-19
 
-Diskhantering & Montering (hddmount)
+VERSION: 2.2.3 (2026-11-20)
+Backup Utilities (userbackup)
 -----------------------
-* Ny NTFS-drivrutin: Övergång från ntfs-3g till den inbyggda och betydligt snabbare kärndrivrutinen ntfs3 för överlägsen överföringshastighet.
-* Självläkande montering: Skriptet upptäcker nu automatiskt "dirty" filsystem (p.g.a. Windows Fast Startup eller krascher), kör ntfsfix -d i bakgrunden och gör ett nytt monteringsförsök, så att teknikern slipper felsöka manuellt.
+* Synchronized logic: The script (now v2.1.14) is fully updated to match the latest stability fixes in the main diskbackup tool.
+* SMB/Symlink fix: Resolved the "Operation not supported (95)" network error by implementing --no-links in the main copy phase to silently skip Windows shortcuts.
+* Optimized UX: Introduced --info=progress2, --info=nonreg0, and -h throughout the script (including SPCS/SIE data and the explicit OneDrive copy) for clean, readable progress bars in the terminal.
+* Seamless integration: Automatically reads the order number via /tmp/alina_order just like the rest of the tools, minimizing manual input.
 
-Säkerhetskopiering (diskbackup)
+VERSION: 2.2.2 (2026-11-19)
+Disk Management & Mounting (hddmount)
 -----------------------
-* SMB/Symlänk-fix: Löst problemet med "Operation not supported (95)" på backupservern. Skriptet använder nu --no-links i fas 1 för att ignorera gamla Windows-genvägar (som "Documents and Settings") men bevarar funktionen för att tvinga fram OneDrive-molnfiler i fas 2.
-* Optimerad UX: Uppdaterade rsync-flaggor (--info=progress2, --no-i-r) ger nu en ren, enskild och mycket mer lättläst progress bar istället för att spamma terminalen med filnamn.
-* Uppdaterad Blacklist: Lade till Program Files/WindowsApps i exkluderingslistan.
-* Sömlös integration: Skriptet läser nu automatiskt ordernumret från /tmp/alina_order precis som de andra verktygen.
-
+* New NTFS Driver: Transitioned from ntfs-3g to the built-in and significantly faster ntfs3 kernel driver for superior transfer speeds.
+* Self-healing mounting: The script now automatically detects "dirty" file systems (due to Windows Fast Startup or crashes), runs ntfsfix -d in the background, and retries the mount, saving technicians from manual troubleshooting.
+Backup Utilities (diskbackup)
+-----------------------
+* SMB/Symlink fix: Resolved the "Operation not supported (95)" error on the backup server. The script now uses --no-links in phase 1 to ignore old Windows shortcuts (like "Documents and Settings") but retains the function to force OneDrive cloud files in phase 2.
+* Optimized UX: Updated rsync flags (--info=progress2, --no-i-r) now provide a clean, single, and much more readable progress bar instead of spamming the terminal with filenames.
+* Updated Blacklist: Added Program Files/WindowsApps to the exclusion list and an exception for damaged /LogFiles.
+* Seamless integration: The script now automatically reads the order number from /tmp/alina_order just like the other tools.
 System
 -----------------------
-* Stabilitet: Tog permanent bort det strulande broadcom-wl-paketet från installationslistan för att förhindra krascher vid image-byggandet.
+* Stability: Permanently removed the problematic broadcom-wl package from the installation list to prevent crashes during ISO building.
 
-
-Version: 2.2.1
-Datum: 2026-10-16
-
+VERSION: 2.2.1 (2026-10-16)
 Disk Clones
 -----------------------
-Nytt verktyg (clone-disk): Ett dedikerat verktyg för att klona diskar (dd under huven) har lagts till. Verktyget hanterar defekta sektorer säkert med conv=noerror,sync.
-Två arbetslägen: Stödjer både skapande av Image-filer (.img) direkt till backupservern och direkt kloning (Disk-till-Disk).
+* New tool (clone-disk): Added a dedicated tool for cloning disks (using dd under the hood). The tool handles bad sectors safely with conv=noerror,sync.
+* Two working modes: Supports both creating Image files (.img) directly to the backup server and direct cloning (Disk-to-Disk).
 
-
-Version:     2.2.0
-Date:        2026-09-04
-
+VERSION: 2.2.0 (2026-09-04)
 SYSTEM & CORE (Archiso)
 -----------------------
-* Native BitLocker Integration: Tog bort det instabila 'dislocker'-verktyget och dess beroenden helt från ISO-bygget och det egna lokala kodarkivet (custom_repo). Gick istället över till Arch Linux inbyggda och moderna 'cryptsetup', vilket ger en mycket snabbare och stabilare BitLocker-upplåsning direkt i operativsystemet.
-
+* Native BitLocker Integration: Completely removed the unstable 'dislocker' tool and its dependencies from the ISO build and local custom repository. Transitioned to Arch Linux's built-in and modern 'cryptsetup', providing much faster and more stable BitLocker unlocking directly in the OS.
 BITLOCKER UTILITY ('bitlocker' v2.2.0)
 -----------------------
-* Omskrivning för Cryptsetup: Skrev om hela dekrypteringslogiken för att utnyttja 'cryptsetup'. Lade till dynamisk namngivning (mapper-hantering) för att undvika systemkonflikter, vilket gör att du nu kan låsa upp och montera flera BitLocker-diskar samtidigt.
-* Automatisk Nätverkssynk: Skriptet startar nu i tysthet om Samba-tjänsten vid en framgångsrik upplåsning. Detta säkerställer att den nyligen dekrypterade disken omedelbart blir tillgänglig över nätverket för dina Windows-maskiner.
+* Cryptsetup Rewrite: Rewrote the entire decryption logic to utilize 'cryptsetup'. Added dynamic naming (mapper handling) to avoid system conflicts, allowing you to unlock and mount multiple BitLocker disks simultaneously.
+* Automatic Network Sync: The script now silently restarts the Samba service upon a successful unlock. This ensures the newly decrypted disk immediately becomes available over the network for your Windows machines.
 
-Version:     2.1.10
-Date:        2026-08-15
-==============================================================================
-
+VERSION: 2.1.10 (2026-08-15)
 BACKUP UTILITIES ('diskbackup' & 'userbackup' v2.1.13)
 -----------------------
-* Förbättrad filtrering av Windows-appar: Ersatte specifika app-undantag (som Candy Crush och TikTok) med en heltäckande regel som nu exkluderar hela 'AppData/Local/Packages'-mappen. Detta snabbar upp kopieringen avsevärt och sparar mycket utrymme.
-* Exkludering av Antivirus-cache: Lade till nya globala exkluderingar för tunga och onödiga mappar från Norton, AVG, Avast och McAfee (både i AppData/Local och LocalLow). Detta förhindrar att enorma mängder skräpdata, loggar och virussignaturer kopieras i onödan.
+* Improved Windows App filtering: Replaced specific app exclusions with a comprehensive rule that now excludes the entire 'AppData/Local/Packages' folder. This significantly speeds up copying and saves a lot of space.
+* Antivirus Cache Exclusion: Added new global exclusions for heavy and unnecessary folders from Norton, AVG, Avast, and McAfee (both in AppData/Local and LocalLow). This prevents enormous amounts of junk data, logs, and virus signatures from being copied unnecessarily.
 
-Version:     2.1.9
-Date:        2026-08-13
-
+VERSION: 2.1.9 (2026-08-13)
 SYSTEM & CORE (Archiso)
 -----------------------
-* Inbyggt stöd för OneDrive: Integrerade pluginet 'ntfs-3g-onedrive' direkt i ISO-bygget. LiveCD:n kan nu läsa och montera Windows 10/11 "Files On-Demand" (reparse points) utan att behandla dem som trasiga symlinks.
-* Dynamisk nätverksdelning: Lade till paketen 'samba' och 'wsdd'. LiveCD:n sänder nu automatiskt ut monterade diskar (som /mnt/disk1) säkert över det lokala nätverket till Windows-datorer.
-* Fix för terminalsession: Löste buggen med en oändlig loop i autostart-profilen. När man avslutar menyn hamnar man nu direkt i en fungerande terminalsession.
-
+* Native OneDrive Support: Integrated the 'ntfs-3g-onedrive' plugin directly into the ISO build. The LiveCD can now read and mount Windows 10/11 "Files On-Demand" (reparse points) without treating them as broken symlinks.
+* Dynamic Network Sharing: Added 'samba' and 'wsdd' packages. The LiveCD now automatically broadcasts mounted disks (like /mnt/disk1) securely over the local network to Windows computers.
+* Terminal Session Fix: Resolved the infinite loop bug in the autostart profile. Exiting the menu now drops the user directly into a working terminal session.
 MAIN MENU ('menu' v2.1.14)
 -----------------------
-* Automatiserad SMB-delning: Menyn konfigurerar och startar nu i tysthet en säker Samba-nätverksdelning i bakgrunden vid uppstart, låst till användaren 'root'.
-* Gränssnitt & navigering: Navigeringsknapparna är nu versaler (X för att avsluta, R för omstart, Q för avstängning). Alternativ 14 har uttryckligen döpts om till "Change Ordernumber". 
-* S.M.A.R.T. Health Check: Förfinade logiken för hårdvarukontrollen så att den känner av tomma anslutningar, och visar en tydlig varning ("No physical disks detected") istället för att ge falska SMART-fel.
-
+* Automated SMB Sharing: The menu now silently configures and starts a secure Samba network share in the background at startup, locked to the 'root' user.
+* Interface & Navigation: Navigation keys are now uppercase (X, R, Q). Option 14 has been explicitly renamed to "Change Ordernumber".
+* S.M.A.R.T. Health Check: Refined hardware check logic to detect empty connections, showing a clear warning ("No physical disks detected") instead of false S.M.A.R.T. errors.
 BACKUP UTILITIES ('diskbackup' & 'userbackup' v2.1.12)
 -----------------------
-* Offline-flexibilitet: Tog bort det hårda nätverksstoppet. Tekniker kan nu utföra lokala eller anpassade backuper (t.ex. till USB-minnen) även när backupservern är offline.
-* Avancerad OneDrive-kopiering: Lade till en riktad sekundär rsync-fas specifikt för OneDrive-mappar för att säkerställa att lokala molnfiler kopieras fysiskt.
-* Smart molnhantering: Båda skripten hoppar nu snyggt över trasiga symlinks i Windows-profiler (som 'Default User') för att förhindra krascher. De fångar även upp rsync Error 23 och varnar teknikern i klartext om kundens data enbart existerar i Microsoft-molnet.
-* Förbättrad filtrering av Windows-appar: Ersatte specifika app-undantag (som Candy Crush och TikTok) med en heltäckande regel som nu exkluderar hela 'AppData/Local/Packages'-mappen. Detta snabbar upp kopieringen avsevärt och sparar mycket utrymme.
-* Exkludering av Antivirus-cache: Lade till nya globala exkluderingar för tunga och onödiga mappar från Norton, AVG, Avast och McAfee (både i AppData/Local och LocalLow). Detta förhindrar att enorma mängder skräpdata, loggar och virussignaturer kopieras i onödan.
-
+* Offline Flexibility: Removed the hard network block. Technicians can now perform local or custom backups (e.g., to USB drives) even when the backup server is offline.
+* Advanced OneDrive Copying: Added a targeted secondary rsync phase specifically for OneDrive folders to ensure local cloud files are physically copied.
+* Smart Cloud Handling: Both scripts now gracefully skip broken symlinks in Windows profiles (like 'Default User') to prevent crashes. They also warn in plain text if a customer's data only exists in the cloud.
 WINDOWS NETWORK TOOL ('NEW_alina_local_backup.cmd' v2.1)
 -----------------------
-* Säker autentisering: Uppdaterade monteringslogiken ('net use') för att ansluta mot LiveCD:ns nya säkra Samba-delning med 'root'-uppgifter, vilket ersätter den gamla osäkra gäståtkomsten.
+* Secure Authentication: Updated mounting logic ('net use') to connect to the LiveCD's new secure Samba share using 'root' credentials, replacing the old insecure guest access.
 
-Version:     2.1.8
-Datum:       2026-08-12
-
+VERSION: 2.1.8 (2026-08-12)
 SYSTEM & CORE (Archiso)
 -----------------------
-* Inbyggt stöd för OneDrive: Integrerade pluginet 'ntfs-3g-onedrive' direkt i ISO-bygget. LiveCD:n kan nu läsa och montera Windows 10/11 "Files On-Demand" (reparse points) utan att behandla dem som trasiga symlinks.
-* Fix för terminalsession: Löste buggen med en oändlig loop i autostart-profilen för `.zshrc`. När man avslutar menyn hamnar man nu direkt i en fungerande terminalsession på första försöket.
-
+* Native OneDrive Support: Integrated the 'ntfs-3g-onedrive' plugin directly into the ISO build.
+* Terminal Session Fix: Resolved the infinite loop bug in the autostart profile for `.zshrc`.
 MAIN MENU ('menu')
 -----------------------
-* Uppdaterad navigering: Ersatte numeriska alternativ för sessionshantering med snabbare kortkommandon ('x' för att avsluta menyn, 'r' för omstart, 'q' för avstängning).
-* Återmontering av server: Lade till ett dedikerat alternativ för "Remount Server" direkt i huvudmenyn.
-* S.M.A.R.T. Hälsokontroll: Förfinade logiken för hårdvarukontrollen så att den känner av tomma anslutningar. Den visar nu en tydlig varning om att "Inga fysiska diskar upptäcktes" istället för att ge falska SMART-fel när inga diskar är inkopplade.
-
+* Updated Navigation: Replaced numerical options for session management with faster shortcuts ('x', 'r', 'q').
+* Remount Server: Added a dedicated "Remount Server" option directly in the main menu.
 BACKUP UTILITY ('diskbackup' & 'userbackup')
 -----------------------
-* Offline-flexibilitet ('diskbackup'): Tog bort det hårda nätverksstoppet. Tekniker kan nu utföra lokala eller anpassade backuper (t.ex. till USB-minnen) även när backupservern är offline.
-* Avancerad OneDrive-kopiering: Lade till en riktad sekundär rsync-fas specifikt för OneDrive-mappar i både 'diskbackup' och 'userbackup' för att säkerställa att lokala molnfiler kopieras fysiskt.
-* Smart molnhantering: Båda backupskripten hoppar nu snyggt över trasiga symlinks i Windows-profiler (som 'Default User') för att förhindra krascher. De fångar även upp rsync Error 23 och varnar teknikern i klartext om kundens data enbart existerar i Microsoft-molnet och saknas lokalt på disken.
-
+* Offline Flexibility ('diskbackup'): Removed the hard network block.
 DIAGNOSTICS & NETWORK ('fm-report' & 'backupserver_mount')
 -----------------------
-* FurMark 2 Offline-läge: GPU-stresstestet känner nu av om backupservern saknas och sparar istället prestandarapporten lokalt i '/tmp/' för att undvika timeout-fel i nätverket.
-* Nätverksmigrering: Lade till det nya subnätet för Enköping (10.150.20.80) i monteringsskriptet, men behöll det gamla subnätet för att säkerställa en sömlös övergång för alla arbetsbänkar.
+* FurMark 2 Offline Mode: The GPU stress test now detects if the backup server is missing and saves the performance report locally in '/tmp/' instead.
+* Network Migration: Added the new subnet for Enköping (10.150.20.80) to the mount script.
 
-
-VERSION: 2.1.7
-DATE: 2026-05-26
-
-HUVUDMENY & AUTOSTART ('menu' & '.zshrc'):
+VERSION: 2.1.7 (2026-05-26)
+MAIN MENU & AUTOSTART ('menu' & '.zshrc')
 -----------------------
-- Kompakt layout: Tog bort tomrader och komprimerade alternativen så att menyn passar perfekt i ett standardstort XFCE-terminalfönster utan skrollning.
-- Smart diskfiltrering: SMART-kontrollen söker nu strikt efter fysiska SATA- och NVMe-enheter och ignorerar uttryckligen USB-minnen och virtuella LiveCD-enheter för att förhindra falska felmeddelanden.
-- Korrigerad avslutningslogik: Uppdaterade autostarten i .zshrc med en kontrollerad loop. Att välja alternativ 15 stänger nu menyn rent och lämnar teknikern i en aktiv terminal, istället för att stänga hela fönstret eller starta om menyn.
-
-SÄKERHETSKOPIERING ('diskbackup' & 'macbackup'):
+* Compact Layout: Removed blank lines and compressed options so the menu fits perfectly in a standard XFCE terminal window without scrolling.
+* Smart Disk Filtering: The S.M.A.R.T. check now strictly looks for physical SATA and NVMe drives, ignoring USB and LiveCD drives.
+BACKUP UTILITIES ('diskbackup' & 'macbackup')
 -----------------------
-- Enhetliga menyval: Ändrade käll- och destinationsalternativen från fullständiga sökvägar till korta alias (t.ex. 'disk1') för att matcha standarden i övriga verktyg.
-- Custom Path fix: Skripten respekterar nu den exakta sökvägen vid val av anpassad destination (val 5) och tvingar inte längre fram en extra "Backup_"-undermapp när data sparas på till exempel en extern USB-enhet.
-- Kodsanering: Rensade bort dolda metadata-taggar som orsakade syntaxfel.
-
-DISKHANTERING & SYSTEM ('hddmount' & 'bitlocker'):
+* Uniform Menu Options: Changed source and destination options from full paths to short aliases (e.g., 'disk1').
+* Custom Path Fix: Scripts now respect the exact path when a custom destination is chosen.
+DISK MANAGEMENT & SYSTEM ('hddmount' & 'bitlocker')
 -----------------------
-- Enhetliga menyval: Uppdaterade monteringsmålen till det korta 'disk1'-formatet.
-- Kodsanering: Tog bort felaktiga systemtaggar som bröt sökkriterierna och orsakade kraschar vid start.
-
-NÄTVERK & MILJÖ ('deploy-iso'):
+* Uniform Menu Options: Updated mount targets to the short 'disk1' format.
+NETWORK & ENVIRONMENT ('deploy-iso')
 -----------------------
-- deploy-iso: Uppdaterade Enköpings server-IP till det nya 10.150.20.80-subnätet.
-- deploy-iso: Lade till explicit SMB-autentisering (användare/lösenord) för Uppsala-servern för att åtgärda tysta monteringsfel.
-- deploy-iso: Införde en felspårningslista som ger en tydlig summering av exakt vilka servrar som lyckades respektive misslyckades vid uppladdning av ISO-filen.
+* deploy-iso: Updated the Enköping server IP to the new 10.150.20.80 subnet, added explicit SMB authentication for Uppsala, and introduced an error tracking list for ISO uploads.
 
-VERSION: 2.1.6
-DATE: 2026-05-25
-
-HUVUDMENY ('menu'):
+VERSION: 2.1.6 (2026-05-25)
+MAIN MENU ('menu')
 -----------------------
-- Kategoriserat menyupplägg: Strukturerat om huvudmenyn i logiska, uppgiftsbaserade block för att ge en bättre översikt (Hardware & Diagnostics, Disk Management & Backup, System Utilities och Session Management).
-- Skärmdiagnostik (Döda pixlar): Integrerat ett webbaserat verktyg för skärmtest kopplat direkt till 'https://deadpixeltest.org/', vilket lanseras som en isolerad bakgrundsprocess i webbläsaren.
-- Renare gränssnitt: Förenklat visningen av interna diskar till korta alias (t.ex. 'disk1') istället för fullständiga systemsökvägar (t.ex. '/mnt/disk1') för ökad läsbarhet.
-
-DIAGNOSTIKVERKTYG ('smart'):
+* Categorized Menu Layout: Restructured the main menu into logical, task-based blocks.
+* Screen Diagnostics: Integrated a web-based screen test tool (deadpixeltest.org).
+DIAGNOSTIC TOOLS ('smart')
 -----------------------
-- Isolerat server-offline läge: Skriptet verifierar nu nätverkssökvägar aktivt via 'mountpoint' innan körning, vilket förhindrar att skriptet kraschar om backupservern inte är monterad.
-- Dynamisk anslutningsprompt: Lagt till ett menyval vid start som låter tekniker antingen initiera nätverksmonteringen manuellt på begäran, eller fortsätta direkt med en lokal analys (endast skärmvisning).
-- Villkorlig loggning: Stänger automatiskt av filexporten till nätverket när skriptet körs i offline-läge för att eliminera skrivfel mot osynliga sökvägar.
-
-SÄKERHETSKOPIERING ('diskbackup' & 'userbackup'):
+* Isolated Server-Offline Mode: Actively verifies network paths before execution.
+BACKUP UTILITIES ('diskbackup' & 'userbackup')
 -----------------------
-- Avancerad sökvägshantering: Skripten identifierar nu snedstreck ('/') i användarens inmatning. Om en tekniker anger en strukturerad undermapp (t.ex. 'EVN260561/Disk2') som anpassat mål, sparas data exakt på den angivna platsen utan att skriptet lägger till extra "Backup_"-prefix eller duplicerade katalogträd.
-- Tydligare destinationsval: Anpassat siffermenyn för sparmål till att matcha det nya, korta 'disk1'-'disk4'-formatet.
-
-DISKHANTERING ('macmount' & 'hddmount'):
+* Advanced Path Handling: Scripts now correctly handle structured subfolders for custom targets without creating extra directory trees.
+DISK MANAGEMENT ('macmount' & 'hddmount')
 -----------------------
-- Enhetliga menyloopar: Ersatt gamla Bash-gränssnitt med standardiserade 'while true'- och 'case'-block för ett mer robust och enhetligt flöde i terminalen.
-- Sanering av partitionsnamn: Lagt till automatisk stränghantering som rensar bort oavsiktliga '/dev/'-prefix om en tekniker råkar skriva det vid val av disk.
-- Förenklade gränssnittsalternativ: Uppdaterat monteringspunkterna i menyerna till korta enhetsnamn istället för fullständiga systemsökvägar.
-
-SYSTEM- OCH PRODUKTNYCKLAR ('winver' & 'ntpass' & 'bitlocker'):
+* Uniform Menu Loops: Replaced old interfaces with standardized 'while true' and 'case' blocks.
+SYSTEM AND PRODUCT KEYS ('winver', 'ntpass', 'bitlocker')
 -----------------------
-- Standardisering av kodbas: Korrigerat och städat upp överlappande metadata-huvuden samt felaktiga beskrivningar i skriptfilerna.
-- Enhetliga monteringsmål: Uppdaterat monteringsmenyn i samtliga skript till det nya, strömlinjeformade 'disk1'-'disk4'-formatet för att matcha resten av systemmiljön.
-
-PRESTANDATESTER OCH SKÄRMDUMPAR ('fm-report' & 'occt-report' & 'snap'):
+* Codebase Standardization: Corrected overlapping metadata headers.
+PERFORMANCE TESTS AND SCREENSHOTS
 -----------------------
-- Konsoliderad rapportlagring: Omdirigerat alla rapportgenereringar och skärmdumpar till att sparas centralt under '/mnt/backupserver/__reports/' utan att skapa fragmenterade underkataloger.
+* Consolidated Report Storage: Redirected all reports to be saved centrally under '/mnt/backupserver/__reports/'.
 
-VERSION: 2.0.7
-DATE: 2026-04-29
-AUTHOR: Ralf R. (ralf.rangedahl@alina.se)
-
-LATEST CHANGES:
----------------
-- Fixed: fm-report now saves directly to /mnt/backupserver/__reports/ without subfolders.
-
-VERSION: 2.0.6
-DATUM: 2026-04-23
-STATUS: Stabil / Produktionsklar
-
-NYA VERKTYG & FUNKTIONER ('userbackup'):
+VERSION: 2.0.7 (2026-04-29)
 -----------------------
-- Återinfört och moderniserat: Det klassiska 'userbackup'-skriptet är tillbaka, nu helt ombyggt för att matcha 2.0-standarden med samma interaktiva käll- och destinationsmenyer som diskbackup.
-- Bokföring (SPCS/SIE): Skriptet letar återigen automatiskt efter och kopierar svensk bokföringsdata (C:\SIE, C:\SPCSFiler, C:\ProgramData\SPCS) till en separat extra-mapp.
-- Bokmärken: Extraherar explicit bokmärken för Chrome och Edge och lägger dem i egna, lättillgängliga mappar i backupen.
-- Inbyggda filter: Den gamla externa '/root/exclude.txt' är nu borttagen. Skriptet har nu den tunga, inbyggda exkluderingslistan som automatiskt rensar bort AppData-cache, bloatware och temporära filer.
+* Fixed: fm-report now saves directly to /mnt/backupserver/__reports/ without subfolders.
 
-HUVUDMENY ('menu'):
+VERSION: 2.0.6 (2026-04-23)
+NEW TOOLS & FEATURES ('userbackup')
 -----------------------
-- Uppdaterat huvudmenyn till version 2.0.4.
-- Lade till 'User Backup (userbackup)' som val nummer 4, vilket samlar alla disk- och backupverktyg i en mer logisk följd.
-- Justerat de efterföljande menyvalen (nu upp till 16 val) och anpassat paus-logiken för de nya siffrorna.
-
---------------------------------------------------
-
-VERSION: 2.0.5
-DATUM: 2026-04-22
-STATUS: Stabil / Produktionsklar
-
-SÄKERHETSKOPIERING ('diskbackup' & 'macbackup'):
+* Reintroduced & Modernized: The userbackup script is back, completely rebuilt to match the 2.0 standard.
+* Accounting (SPCS/SIE): Copies Swedish accounting data to a separate extra folder.
+* Bookmarks: Explicitly extracts bookmarks for Chrome and Edge.
+MAIN MENU ('menu')
 -----------------------
-- Ny interaktiv meny för DESTINATION: Tekniker kan nu välja att spara backupen lokalt (t.ex. till /mnt/disk4 eller en anpassad USB-sökväg) istället för att vara tvingade till backupservern över nätverket.
-- Uppdaterat arbetsflöde: Skripten frågar nu mer logiskt efter Käll-disk (Source) först, och därefter Destinations-disk (Target).
-- Smarta standardval: Siffermenyn för destination matchar diskarna direkt (1 för disk1, etc.). Val '0' (eller att bara trycka Enter) väljer automatiskt Backupservern som standard [DEFAULT].
-- Automatisk namngivning: Om en lokal disk/USB väljs som destination läggs prefixet "Backup_" automatiskt till framför ordernumret (t.ex. Backup_TESTRIGG12). På servern används fortfarande bara ordernumret.
-- Förbättrad säkerhet: Skriptet förhindrar nu aktivt att en tekniker råkar spara en backup inuti samma enhet som källan, vilket stoppar rsync från att fastna i en oändlig loop.
+* Updated main menu to version 2.0.4. Added 'User Backup (userbackup)'.
 
-SYSTEM & BYGGMILJÖ:
+VERSION: 2.0.5 (2026-04-22)
+BACKUP UTILITIES ('diskbackup' & 'macbackup')
 -----------------------
-- Åtgärdat byggproblem relaterade till 'xz uncompress failed with error code 9' genom att säkerställa rensning av 'work'-katalogen före komprimering.
-
--------------------------------------------------------------------------------------------------------------------------------------------
-
-VERSION: 2.0.4
-DATUM: 2026-04-22
-STATUS: Stabil / Produktionsklar
-
-NÄTVERK & FILDELNING (NY FUNKTION):
+* New interactive menu for DESTINATION: Choose to save the backup locally (e.g., USB) or to the backup server [DEFAULT].
+* Updated Workflow: Now asks for Source disk first, then Destination disk.
+SYSTEM & BUILD ENVIRONMENT
 -----------------------
-- Implementerat automatisk nätverksdelning (Samba) av /mnt/disk1 till /mnt/disk4 direkt vid uppstart.
-- Delningen är helt lösenordsfri (guest account = nobody) för smidig åtkomst från teknikernas Windows-datorer via \\IP-ADRESS\disk1.
-- Konfigurerat resursen som strikt skrivskyddad (read-only) för att skydda kundens data från oavsiktliga ändringar.
-- Aktiverat 'smb.service' via systemd i byggmiljön för att alltid starta automatiskt.
+* Fixed build issues ('xz uncompress failed with error code 9') by clearing the 'work' directory.
 
--------------------------------------------------------------------------------------------------------------------------------------------
-
-VERSION: 2.0.3
-DATUM: 2026-04-21
-STATUS: Stabil / Produktionsklar
-
-ÖVERGRIPANDE ÄNDRINGAR & MILJÖ:
+VERSION: 2.0.4 (2026-04-22)
+NETWORK & FILE SHARING (NEW FEATURE)
 -----------------------
-- Introducerat 'alina-env.sh' som en centraliserad konfigurationsfil för färger, menyer, server-monteringskontroll och hantering av ordernummer.
-- Helt enhetlig design, layout och färgkodning har applicerats över samtliga skript via den nya standardmallen.
-- Lagt till ett standardiserat metadata-huvud (Beskrivning, Författare, Version, Datum, samt EOF-markör) i alla skript.
-- Lagt till paketet 'noto-fonts-emoji' i byggmiljön för att säkerställa att ikoner och emojis renderas korrekt i terminalen.
+* Implemented automatic network sharing (Samba) of /mnt/disk1 through /mnt/disk4 directly at startup.
+* The share is passwordless and read-only for secure access.
 
-HUVUDMENY & AUTOSTART ('menu'):
+VERSION: 2.0.3 (2026-04-21)
+OVERALL CHANGES & ENVIRONMENT
 -----------------------
-- 'set-order' har bytt namn till 'menu' och fått ett komplett interaktivt gränssnitt för snabb åtkomst till alla diagnostik- och hanteringsverktyg.
-- Konfigurerat ZSH (~/.zshrc) och XFCE autostart för att automatiskt lansera huvudmenyn så fort en tekniker öppnar terminalen.
-- UX: Det är nu möjligt att lämna ordernumret tomt vid snabba ärenden (tryck bara Enter). Systemet sätter då ordernumret till "No_Order" för att förhindra kraschar.
-- UX: Menyn har omstrukturerats (Disk Backup är nu val 3, BitLocker val 5) för ett mer logiskt arbetsflöde.
-- Nya menyval: Lagt till dedikerade alternativ i slutet av menyn för att starta om (Reboot) eller stänga av (Shutdown) systemet.
-
-SKRIPT-UPPDATERINGAR:
+* Introduced 'alina-env.sh' as a centralized configuration file.
+* Completely uniform design, layout, and color coding. Added standardized metadata headers to all scripts.
+MAIN MENU & AUTOSTART ('menu')
 -----------------------
-1. diskbackup / macbackup
-   - Den gamla sökvägskontrollen (pwd) är ersatt med en smart och interaktiv siffermeny. Teknikern kan nu välja källdisk (disk1-disk4 eller anpassad sökväg) direkt i skriptet innan backup startar.
-
-2. hddmount / bitlocker / ntpass
-   - UX-uppdatering: Val av monteringsmål görs nu via en ren siffermeny (1-4 för disk1-disk4) för att matcha arbetsflödet i backup-skripten.
-
-3. occt-report
-   - Buggfix: Tystat startkommandot för OCCT (>/dev/null 2>&1) så att bakgrundsvarningar om saknad hårdvara (t.ex. ZFS eller rsmi) inte blöder in i terminalens nedräkningstimer.
-
-4. fm-report
-   - Buggfix: FurMark 2 ignorerade ofta sin inbyggda timer på Linux. Testet körs nu via det inbyggda Linux-kommandot 'timeout 10m' för att garantera att det alltid stängs av och sparar resultatet efter exakt 10 minuter.
-
-5. arrange
-   - Översatt terminalutskrifter från svenska till engelska för att följa systemets globala språkstandard.
-   - Kopplad till den nya alina-env.sh mallen för färglagd output.
-
-6. Värd-skript (build-alina, backup-alina, test-alina)
-   - Utvecklingsskripten på värddatorn har uppdaterats med inbyggda färgpaletter och metadata-huvuden för ett mer professionellt utseende lokalt.
-
-7. Systemskript (backupserver_mount.sh, set-wallpaper.sh)
-   - Formaterade med den nya standardlayouten och loggningsfärger. backupserver_mount säkerställer nu att /mnt/backupserver alltid skapas innan montering på LiveCD:n.
-
--------------------------------------------------------------------------------------------------------------------------------------------
-
-VERSION: 2.0.2
-DATUM: 2026-04-17
-STATUS: Stabil / Produktionsklar
-
-NYHETER & FÖRBÄTTRINGAR:
+* 'set-order' renamed to 'menu' with an interactive interface that starts automatically.
+SCRIPT UPDATES
 -----------------------
-1. arrange (Version 2.0.2)
-   - Introducerar stabil fönsterhantering (tiling).
-   - Filtrerar bort Xfce-skrivbordet och panelen för att undvika desktop-kaos.
-   - Tvingar maximerade fönster att återgå till normalt läge före flytt.
+* Updated menus and flows in diskbackup, macbackup, hddmount, bitlocker, ntpass.
+* occt-report & fm-report: Bug fixes for timers and background warnings.
 
-2. xdotool & wmctrl (Nya paket)
-   - Tillagda för att möjliggöra avancerad fönsterhantering och skriptstöd.
-
-3. Systemstabilitet & Optimeringar
-   - Verifierat att 'snap' och 'occt-report' fungerar sömlöst med det nya 
-     fönsterupplägget.
-   - Inaktiverat OCCT:s uppdateringsnotiser permanent genom att lägga till 
-     flagg-filen '/opt/occt/disable_update' i airootfs. Detta ger en renare 
-     och snabbare start av stresstestet.
-
--------------------------------------------------------------------------------------------------------------------------------------------
-
-VERSION: 2.0.1
-DATUM: 2026-04-08
-STATUS: Stabil / Produktionsklar
-
-ÖVERGRIPANDE ÄNDRINGAR:
+VERSION: 2.0.2 (2026-04-17)
+NEWS & IMPROVEMENTS
 -----------------------
-- Migrerat alla tekniker-skript från svenska till engelska för ökad kompatibilitet.
-- Implementerat en enhetlig namnstandard för rapporter på backupservern.
-- Modulariserat arbetsflödet: Separerat montering, diagnostik och backup.
-- Pensionerat det gamla "allt-i-ett"-skriptet 'userback' till förmån för mer stabila verktyg.
+* arrange (Version 2.0.2): Introduces stable window management (tiling) without the Xfce panel.
+* New Packages: Added xdotool and wmctrl for window management.
+* System Stability: Permanently disabled OCCT update notifications for faster startup.
 
-SKRIPT-UPPDATERINGAR & NYHETER:
--------------------------------
-
-1. smart (Uppdatering)
-   - Förbättrad filtrering för att automatiskt ignorera LiveCD-USB.
-   - Lagt till färgkodad PASS/FAIL-status för snabbare avläsning.
-
-2. hardware (Uppdatering)
-   - Uppdaterad loggningslogik för att inkludera mer detaljerad GPU- och NVMe-info.
-
-3. occt-report (Stor uppdatering)
-   - Hårdkodat timern till exakt 2 minuter för att förenkla för tekniker.
-   - Borttaget manuellt val av tid.
-   - Implementerat terminal-beep/bell vid avslutad timer.
-
-4. fm-report (Nytt skript)
-   - Ersätter de gamla 'fmstress' och 'fmstress2'.
-   - Flyttad till fast sökväg: /usr/local/bin/furmark2/.
-   - Kör nu 10 minuters benchmark med automatisk loggning till servern.
-
-5. snap (Nytt skript)
-   - Möjliggör manuella skärmdumpar av valfria fönster eller ytor via 'scrot'.
-   - Sparar filer med tidsstämpel för att undvika överskrivning.
-
-6. bitlocker (Översättning/Optimering)
-   - Hela gränssnittet översatt till engelska.
-   - Rensat promptar för att vara mer direkta.
-
-7. hddmount / macmount (Optimering)
-   - Integrerad logik för att automatiskt fixa NTFS-journaler och ta bort 'hiberfile'.
-   - Förbättrad felhantering vid felaktiga partitionsnamn.
-
-8. diskbackup / macbackup (Optimering)
-   - Ersätter behovet av 'userback'.
-   - Använder nu en inbyggd array för exkluderingar istället för extern textfil.
-   - Rensar nu mer effektivt bort webbläsarcache och systembloat.
-
-9. ntpass (Översättning)
-   - Fullt översatt gränssnitt.
-   - Lagt till BitLocker-varning om disken är låst vid start.
-
-BORTTAGNA SKRIPT (DEPRECATED):
-------------------------------
-- userback: Pensionerat pga komplexitet och risk för dubbelkopiering.
-- fmstress / fmstress2: Ersatta av fm-report.
-
---------------------------------------------------
-KONTAKT: Ralf R.
-E-POST: ralf.rangedahl@alina.se
---------------------------------------------------
+VERSION: 2.0.1 (2026-04-08)
+OVERALL CHANGES
+-----------------------
+* Migrated all technician scripts from Swedish to English.
+* Implemented uniform naming standard for reports on the backup server.
+* Retired the old "all-in-one" script 'userback'.
+SCRIPT UPDATES & NEWS
+-----------------------
+* Updates in smart, hardware, occt-report, bitlocker, hddmount, macmount, diskbackup, ntpass.
+* New Tools: fm-report (replaces fmstress) and snap (screenshots via scrot).

@@ -3,8 +3,8 @@
 # Script:      diskbackup
 # Description: Safely copies user data from mounted Windows partitions to a chosen destination.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.1.14
-# Date:        2026-11-19
+# Version:     2.1.15
+# Date:        2026-11-20
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -207,7 +207,9 @@ EXCLUDES=(
     "[wW][iI][nN][dD][oO][wW][sS]/Installer" "[wW][iI][nN][dD][oO][wW][sS]/[sS]system32/dllcache" "[wW][iI][nN][dD][oO][wW][sS]/[sS]system32/spool/drivers"
     "[wW][iI][nN][dD][oO][wW][sS]/[sS]system32/wbem" "[wW][iI][nN][dD][oO][wW][sS]/[tT]emp" "[wW][iI][nN][dD][oO][wW][sS]/[dD]ebug"
     "[wW][iI][nN][dD][oO][wW][sS]/[pP]refetch" "[wW][iI][nN][dD][oO][wW][sS]/[mM]inidump" "[wW][iI][nN][dD][oO][wW][sS]/MEMORY.DMP" "*.dmp"
-    "[wW][iI][nN][dD][oO][wW][sS]/[sS]system32/winevt/[lL]ogs" "[pP]erf[lL]ogs"
+    "[wW][iI][nN][dD][oO][wW][sS]/[sS]system32/winevt/[lL]ogs" "[wW][iI][nN][dD][oO][wW][sS]/[sS]ystem32/[lL]og[fF]iles" "[pP]erf[lL]ogs"
+    "\$Windows.~BT" "\$Windows.~WS" "ProgramData/Microsoft/[wW]indows/WER"
+    "[wW][iI][nN][dD][oO][wW][sS]/SoftwareDistribution/DeliveryOptimization"
     "*[aA]pp[dD]ata/[lL]ocal/[tT]emp" "*[aA]pp[dD]ata/[lL]ocal/[dD]ownloaded [iI]nstallations" "[tT]emporary [iI]nternet [fF]iles"
     "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/*[cC]ache*" "*[aA]pp[dD]ata/[lL]ocal/Google/[cC]hrome/**/CacheStorage"
     "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/*[cC]ache*" "*[aA]pp[dD]ata/[lL]ocal/Microsoft/[eE]dge/**/CacheStorage"
@@ -248,7 +250,7 @@ for user_dir in Users/*; do
             if [ -e "$onedrive_path" ] || [ -L "$onedrive_path" ]; then
                 echo -e "${WHITE}Resolving OneDrive data for $user_dir...${NC}"
                 # Phase 2: Targeted Copy with -L to specifically force rsync to follow the OneDrive symlinks
-                rsync -ahuLS --info=progress2 --no-i-r --numeric-ids \
+                rsync -ahuLS --info=progress2 --info=nonreg0 --no-i-r --numeric-ids \
                       --no-owner --no-group --no-perms --chmod=u=rwX \
                       "${RSYNC_EXCLUDES[@]}" \
                       "$onedrive_path/" "$DEST/$onedrive_path/"

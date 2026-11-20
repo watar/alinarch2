@@ -3,8 +3,8 @@
 # Script:      userbackup
 # Description: Safely copies specific Windows User profiles, Bookmarks, and SPCS/SIE data.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.1.13
-# Date:        2026-08-15
+# Version:     2.1.14
+# Date:        2026-11-20
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -13,12 +13,27 @@ source /usr/local/bin/alina-env.sh
 # INITIALIZATION
 # ==========================================
 alina_header "WINDOWS USER BACKUP"
-check_mount
+# Evaluate Backup Server Status
+if mountpoint -q /mnt/backupserver; then
+    SERVER_MOUNTED=true
+else
+    echo -e "${YELLOW}WARNING: Backup server is NOT mounted! You must choose a local or custom destination.${NC}"
+    SERVER_MOUNTED=false
+fi
 
-# Get Order Number
+# Get Order Number (used for the backup folder name)
 DEST_INPUT="$1"
 if [[ -z "$DEST_INPUT" ]]; then
-    get_order_num
+    # 1. Försök läsa ordernumret som sparades av menyn
+    if [ -f "/tmp/alina_order" ]; then
+        ORDER_NUM=$(cat /tmp/alina_order)
+    fi
+    
+    # 2. Om ordernumret fortfarande saknas, fråga manuellt
+    if [ -z "$ORDER_NUM" ]; then
+        get_order_num
+    fi
+    
     DEST_INPUT="$ORDER_NUM"
 fi
 
@@ -177,19 +192,19 @@ SPCS_TARGET="$DEST_BASE/Accounting_Data_Extra"
 if [[ -d "$SOURCE_DIR/SIE" ]]; then
     mkdir -p "$SPCS_TARGET"
     echo "Copying C:\SIE..."
-    rsync -a "$SOURCE_DIR/SIE" "$SPCS_TARGET/"
+    rsync -ahu --info=progress2 --no-i-r "$SOURCE_DIR/SIE" "$SPCS_TARGET/"
 fi
 
 if [[ -d "$SOURCE_DIR/SPCSFiler" ]]; then
     mkdir -p "$SPCS_TARGET"
     echo "Copying C:\SPCSFiler..."
-    rsync -a "$SOURCE_DIR/SPCSFiler" "$SPCS_TARGET/"
+    rsync -ahu --info=progress2 --no-i-r "$SOURCE_DIR/SPCSFiler" "$SPCS_TARGET/"
 fi
 
 if [[ -d "$SOURCE_DIR/ProgramData/SPCS" ]]; then
     mkdir -p "$SPCS_TARGET"
     echo "Copying C:\ProgramData\SPCS..."
-    rsync -a "$SOURCE_DIR/ProgramData/SPCS" "$SPCS_TARGET/ProgramData_SPCS/"
+    rsync -ahu --info=progress2 --no-i-r "$SOURCE_DIR/ProgramData/SPCS" "$SPCS_TARGET/ProgramData_SPCS/"
 fi
 
 # ==========================================
@@ -222,7 +237,8 @@ echo -e "\n${YELLOW}Starting main user profile copy (Excluding junk/caches)...${
 
 cd "$BACKUP_TARGET" || exit 1
 
-rsync -avuS --progress --numeric-ids \
+# Phase 1: Main Copy (Preserves symlinks to avoid infinite junction loops)
+rsync -ahuS --no-links --info=progress2 --info=nonreg0 --no-i-r --numeric-ids \
       --no-owner --no-group --no-perms --chmod=u=rwX \
       "${RSYNC_EXCLUDES[@]}" \
       . "$DEST"
@@ -241,7 +257,7 @@ for onedrive_path in OneDrive*; do
         mkdir -p "$DEST/$onedrive_path"
         
         # Targeted Copy with -L to resolve symlinks
-        rsync -avuLS --progress --numeric-ids \
+        rsync -ahuLS --info=progress2 --info=nonreg0 --no-i-r --numeric-ids \
               --no-owner --no-group --no-perms --chmod=u=rwX \
               "${RSYNC_EXCLUDES[@]}" \
               "$onedrive_path/" "$DEST/$onedrive_path/"
