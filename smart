@@ -3,8 +3,8 @@
 # Script:      smart
 # Description: Performs S.M.A.R.T health checks on physical storage drives and logs the results.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.1.11
-# Date:        2026-008-11
+# Version:     2.1.12
+# Date:        2026-11-20
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -90,7 +90,8 @@ generate_output() {
     local TARGET="/dev/$DEV"
     
     if [[ "$DEV" == nvme* ]]; then
-        SMART_DATA=$(nvme smart-log "$TARGET")
+        # Uppdaterat kommando till 'nvme log smart' enligt nvme-cli's nya standard
+        SMART_DATA=$(nvme log smart "$TARGET")
         CRIT=$(echo "$SMART_DATA" | grep "critical_warning" | awk -F ':' '{print $2}' | tr -d ' ')
         TEMP=$(echo "$SMART_DATA" | grep "temperature" | grep -v "sensor" | awk -F ':' '{print $2}' | tr -d ' ')
         USED=$(echo "$SMART_DATA" | grep "percentage_used" | awk -F ':' '{print $2}' | tr -d ' %')

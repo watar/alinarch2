@@ -3,8 +3,8 @@
 # Script:      hardware
 # Description: Generates a comprehensive hardware valuation report and system overview.
 # Author:      Ralf R. (ralf.rangedahl@alina.se)
-# Version:     2.1.11
-# Date:        2026-008-11
+# Version:     2.1.12
+# Date:        2026-11-20
 # ==============================================================================
 
 source /usr/local/bin/alina-env.sh
@@ -70,7 +70,7 @@ for DISK in $(lsblk -d -n -e 7 -o NAME,TRAN | awk '$2 != "usb" {print $1}'); do
     if [[ "$DISK" == nvme* ]]; then
         echo -e "Analyzing NVMe drive: ${WHITE}$DISK${NC}..."
         echo -e "\n--- SMART (NVME: $DISK) ---" >> "$LOGFILE"
-        nvme smart-log "/dev/$DISK" | grep -i -E 'critical_warning|temp|available_spare|on_hours|shutdowns|media_errors' >> "$LOGFILE"
+        nvme log smart "/dev/$DISK" | grep -i -E 'critical_warning|temp|available_spare|on_hours|shutdowns|media_errors' >> "$LOGFILE"
     elif [[ "$DISK" == sd* || "$DISK" == hd* ]]; then
         echo -e "Analyzing SATA drive: ${WHITE}$DISK${NC}..."
         echo -e "\n--- SMART (S-ATA: $DISK) ---" >> "$LOGFILE"

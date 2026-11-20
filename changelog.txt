@@ -1,182 +1,242 @@
 ==================================================
        ALINA ARCH LIVECD - CHANGELOG
 ==================================================
-CONTACT: Ralf R. | EMAIL: ralf.rangedahl@alina.se
+CONTACT: Ralf R.
+EMAIL: ralf.rangedahl@alina.se
 ==================================================
 
-VERSION: 2.2.3 (2026-11-20)
+Version: 2.2.4
+Date: 2026-11-20
+
+Diagnostics & Hardware (hardware & smart)
+-----------------------
+* Modernized NVMe Commands: Updated the syntax from the deprecated 'nvme smart-log' to the current 'nvme log smart' to prevent terminal warnings and ensure compatibility with the latest nvme-cli package.
+
+Version: 2.2.3
+Date: 2026-11-20
+
 Backup Utilities (userbackup)
 -----------------------
-* Synchronized logic: The script (now v2.1.14) is fully updated to match the latest stability fixes in the main diskbackup tool.
-* SMB/Symlink fix: Resolved the "Operation not supported (95)" network error by implementing --no-links in the main copy phase to silently skip Windows shortcuts.
-* Optimized UX: Introduced --info=progress2, --info=nonreg0, and -h throughout the script (including SPCS/SIE data and the explicit OneDrive copy) for clean, readable progress bars in the terminal.
-* Seamless integration: Automatically reads the order number via /tmp/alina_order just like the rest of the tools, minimizing manual input.
+* Synchronized Logic: The userbackup script is now fully updated to match the latest stability fixes in the main diskbackup tool.
+* SMB/Symlink Fix: Resolved the "Operation not supported (95)" network error by implementing --no-links in the main copy phase to silently skip legacy Windows shortcuts.
+* Optimized UX: Introduced --info=progress2, --info=nonreg0, and -h throughout the script (including SPCS/SIE data and the explicit OneDrive copy) for clean, readable progress bars.
+* Seamless Integration: Automatically reads the order number via /tmp/alina_order to minimize manual input.
 
-VERSION: 2.2.2 (2026-11-19)
-Disk Management & Mounting (hddmount)
+Version: 2.2.2
+Date: 2026-11-19
+
+Disk Management & Mount (hddmount)
 -----------------------
-* New NTFS Driver: Transitioned from ntfs-3g to the built-in and significantly faster ntfs3 kernel driver for superior transfer speeds.
-* Self-healing mounting: The script now automatically detects "dirty" file systems (due to Windows Fast Startup or crashes), runs ntfsfix -d in the background, and retries the mount, saving technicians from manual troubleshooting.
+* New NTFS Driver: Transitioned from ntfs-3g to the native and significantly faster ntfs3 kernel driver for superior transfer speeds.
+* Self-Healing Mount: Automatically detects "dirty" filesystems (due to Fast Startup or crashes), runs ntfsfix -d in the background, and retries the mount seamlessly.
+
 Backup Utilities (diskbackup)
 -----------------------
-* SMB/Symlink fix: Resolved the "Operation not supported (95)" error on the backup server. The script now uses --no-links in phase 1 to ignore old Windows shortcuts (like "Documents and Settings") but retains the function to force OneDrive cloud files in phase 2.
-* Optimized UX: Updated rsync flags (--info=progress2, --no-i-r) now provide a clean, single, and much more readable progress bar instead of spamming the terminal with filenames.
-* Updated Blacklist: Added Program Files/WindowsApps to the exclusion list and an exception for damaged /LogFiles.
-* Seamless integration: The script now automatically reads the order number from /tmp/alina_order just like the other tools.
+* SMB/Symlink Fix: Implemented --no-links in phase 1 to ignore legacy Windows shortcuts while retaining the ability to force OneDrive cloud files in phase 2.
+* Optimized UX: Updated rsync flags for a clean, single progress bar instead of file spam.
+* Updated Blacklist: Added Program Files/WindowsApps, LogFiles, $Windows.~BT, and other bloatware/caches to the exclusion list.
+* Seamless Integration: Automatically reads the order number from /tmp/alina_order.
+
 System
 -----------------------
-* Stability: Permanently removed the problematic broadcom-wl package from the installation list to prevent crashes during ISO building.
+* Stability: Permanently removed the problematic broadcom-wl package from the installation list to prevent crashes during image building.
 
-VERSION: 2.2.1 (2026-10-16)
+Version: 2.2.1
+Date: 2026-10-16
+
 Disk Clones
 -----------------------
-* New tool (clone-disk): Added a dedicated tool for cloning disks (using dd under the hood). The tool handles bad sectors safely with conv=noerror,sync.
-* Two working modes: Supports both creating Image files (.img) directly to the backup server and direct cloning (Disk-to-Disk).
+* New Tool (clone-disk): A dedicated disk cloning tool (running dd under the hood) has been added. Safely handles defective sectors using conv=noerror,sync. Supports direct Image file creation (.img) to the backup server and direct cloning (Disk-to-Disk).
 
-VERSION: 2.2.0 (2026-09-04)
+Version: 2.2.0
+Date: 2026-09-04
+
 SYSTEM & CORE (Archiso)
 -----------------------
-* Native BitLocker Integration: Completely removed the unstable 'dislocker' tool and its dependencies from the ISO build and local custom repository. Transitioned to Arch Linux's built-in and modern 'cryptsetup', providing much faster and more stable BitLocker unlocking directly in the OS.
+* Native BitLocker Integration: Completely removed the unstable 'dislocker' tool and its dependencies. Transitioned to Arch Linux's built-in 'cryptsetup' for much faster and more stable BitLocker unlocking.
+
 BITLOCKER UTILITY ('bitlocker' v2.2.0)
 -----------------------
-* Cryptsetup Rewrite: Rewrote the entire decryption logic to utilize 'cryptsetup'. Added dynamic naming (mapper handling) to avoid system conflicts, allowing you to unlock and mount multiple BitLocker disks simultaneously.
-* Automatic Network Sync: The script now silently restarts the Samba service upon a successful unlock. This ensures the newly decrypted disk immediately becomes available over the network for your Windows machines.
+* Cryptsetup Rewrite: Rewrote decryption logic to utilize 'cryptsetup'. Added dynamic naming (mapper management) to avoid system conflicts, enabling multiple BitLocker disks to be unlocked and mounted simultaneously.
+* Auto Network Sync: The script now silently restarts the Samba service upon successful unlock, making the decrypted disk immediately available over the network.
 
-VERSION: 2.1.10 (2026-08-15)
+Version: 2.1.10
+Date: 2026-08-15
+
 BACKUP UTILITIES ('diskbackup' & 'userbackup' v2.1.13)
 -----------------------
-* Improved Windows App filtering: Replaced specific app exclusions with a comprehensive rule that now excludes the entire 'AppData/Local/Packages' folder. This significantly speeds up copying and saves a lot of space.
-* Antivirus Cache Exclusion: Added new global exclusions for heavy and unnecessary folders from Norton, AVG, Avast, and McAfee (both in AppData/Local and LocalLow). This prevents enormous amounts of junk data, logs, and virus signatures from being copied unnecessarily.
+* Improved Windows App Filtering: Replaced specific app exclusions (like Candy Crush) with a comprehensive rule excluding the entire 'AppData/Local/Packages' folder, significantly speeding up copies.
+* Antivirus Cache Exclusion: Added global exclusions for heavy and unnecessary folders from Norton, AVG, Avast, and McAfee, preventing useless data and virus signatures from being copied.
 
-VERSION: 2.1.9 (2026-08-13)
+Version: 2.1.9
+Date: 2026-08-13
+
 SYSTEM & CORE (Archiso)
 -----------------------
-* Native OneDrive Support: Integrated the 'ntfs-3g-onedrive' plugin directly into the ISO build. The LiveCD can now read and mount Windows 10/11 "Files On-Demand" (reparse points) without treating them as broken symlinks.
-* Dynamic Network Sharing: Added 'samba' and 'wsdd' packages. The LiveCD now automatically broadcasts mounted disks (like /mnt/disk1) securely over the local network to Windows computers.
-* Terminal Session Fix: Resolved the infinite loop bug in the autostart profile. Exiting the menu now drops the user directly into a working terminal session.
+* Native OneDrive Support: Integrated 'ntfs-3g-onedrive' plugin directly into the ISO build to read Windows "Files On-Demand" (reparse points) without treating them as broken symlinks.
+* Dynamic Network Sharing: Added 'samba' and 'wsdd' packages. The LiveCD now automatically broadcasts mounted disks securely over the local network.
+* Terminal Session Fix: Resolved an infinite loop bug in the autostart profile. Exiting the menu now drops the user directly into a working terminal session.
+
 MAIN MENU ('menu' v2.1.14)
 -----------------------
-* Automated SMB Sharing: The menu now silently configures and starts a secure Samba network share in the background at startup, locked to the 'root' user.
-* Interface & Navigation: Navigation keys are now uppercase (X, R, Q). Option 14 has been explicitly renamed to "Change Ordernumber".
-* S.M.A.R.T. Health Check: Refined hardware check logic to detect empty connections, showing a clear warning ("No physical disks detected") instead of false S.M.A.R.T. errors.
+* Automated SMB Sharing: The menu silently configures and starts a secure Samba share locked to the 'root' user upon boot.
+* Interface & Navigation: Navigation keys are now uppercase (X, R, Q). Option 14 explicitly renamed to "Change Ordernumber".
+* S.M.A.R.T. Health Check: Refined hardware check logic to detect empty connections and display a clear warning instead of false SMART errors.
+
 BACKUP UTILITIES ('diskbackup' & 'userbackup' v2.1.12)
 -----------------------
-* Offline Flexibility: Removed the hard network block. Technicians can now perform local or custom backups (e.g., to USB drives) even when the backup server is offline.
+* Offline Flexibility: Removed hard network stops. Technicians can now perform local or custom backups (e.g., to USB) even when the backup server is offline.
 * Advanced OneDrive Copying: Added a targeted secondary rsync phase specifically for OneDrive folders to ensure local cloud files are physically copied.
-* Smart Cloud Handling: Both scripts now gracefully skip broken symlinks in Windows profiles (like 'Default User') to prevent crashes. They also warn in plain text if a customer's data only exists in the cloud.
+* Smart Cloud Management: Scripts skip broken symlinks and catch rsync Error 23, warning the technician if client data only exists in the Microsoft cloud.
+
 WINDOWS NETWORK TOOL ('NEW_alina_local_backup.cmd' v2.1)
 -----------------------
-* Secure Authentication: Updated mounting logic ('net use') to connect to the LiveCD's new secure Samba share using 'root' credentials, replacing the old insecure guest access.
+* Secure Authentication: Updated mount logic ('net use') to connect to the LiveCD's secure Samba share using 'root' credentials, replacing old guest access.
 
-VERSION: 2.1.8 (2026-08-12)
+Version: 2.1.8
+Date: 2026-08-12
+
 SYSTEM & CORE (Archiso)
 -----------------------
 * Native OneDrive Support: Integrated the 'ntfs-3g-onedrive' plugin directly into the ISO build.
 * Terminal Session Fix: Resolved the infinite loop bug in the autostart profile for `.zshrc`.
+
 MAIN MENU ('menu')
 -----------------------
 * Updated Navigation: Replaced numerical options for session management with faster shortcuts ('x', 'r', 'q').
 * Remount Server: Added a dedicated "Remount Server" option directly in the main menu.
+
 BACKUP UTILITY ('diskbackup' & 'userbackup')
 -----------------------
 * Offline Flexibility ('diskbackup'): Removed the hard network block.
+
 DIAGNOSTICS & NETWORK ('fm-report' & 'backupserver_mount')
 -----------------------
 * FurMark 2 Offline Mode: The GPU stress test now detects if the backup server is missing and saves the performance report locally in '/tmp/' instead.
 * Network Migration: Added the new subnet for Enköping (10.150.20.80) to the mount script.
 
-VERSION: 2.1.7 (2026-05-26)
+Version: 2.1.7
+Date: 2026-05-26
+
 MAIN MENU & AUTOSTART ('menu' & '.zshrc')
 -----------------------
 * Compact Layout: Removed blank lines and compressed options so the menu fits perfectly in a standard XFCE terminal window without scrolling.
 * Smart Disk Filtering: The S.M.A.R.T. check now strictly looks for physical SATA and NVMe drives, ignoring USB and LiveCD drives.
+
 BACKUP UTILITIES ('diskbackup' & 'macbackup')
 -----------------------
 * Uniform Menu Options: Changed source and destination options from full paths to short aliases (e.g., 'disk1').
 * Custom Path Fix: Scripts now respect the exact path when a custom destination is chosen.
+
 DISK MANAGEMENT & SYSTEM ('hddmount' & 'bitlocker')
 -----------------------
 * Uniform Menu Options: Updated mount targets to the short 'disk1' format.
+
 NETWORK & ENVIRONMENT ('deploy-iso')
 -----------------------
 * deploy-iso: Updated the Enköping server IP to the new 10.150.20.80 subnet, added explicit SMB authentication for Uppsala, and introduced an error tracking list for ISO uploads.
 
-VERSION: 2.1.6 (2026-05-25)
+Version: 2.1.6
+Date: 2026-05-25
+
 MAIN MENU ('menu')
 -----------------------
 * Categorized Menu Layout: Restructured the main menu into logical, task-based blocks.
 * Screen Diagnostics: Integrated a web-based screen test tool (deadpixeltest.org).
+
 DIAGNOSTIC TOOLS ('smart')
 -----------------------
 * Isolated Server-Offline Mode: Actively verifies network paths before execution.
+
 BACKUP UTILITIES ('diskbackup' & 'userbackup')
 -----------------------
 * Advanced Path Handling: Scripts now correctly handle structured subfolders for custom targets without creating extra directory trees.
+
 DISK MANAGEMENT ('macmount' & 'hddmount')
 -----------------------
 * Uniform Menu Loops: Replaced old interfaces with standardized 'while true' and 'case' blocks.
+
 SYSTEM AND PRODUCT KEYS ('winver', 'ntpass', 'bitlocker')
 -----------------------
 * Codebase Standardization: Corrected overlapping metadata headers.
+
 PERFORMANCE TESTS AND SCREENSHOTS
 -----------------------
 * Consolidated Report Storage: Redirected all reports to be saved centrally under '/mnt/backupserver/__reports/'.
 
-VERSION: 2.0.7 (2026-04-29)
+Version: 2.0.7
+Date: 2026-04-29
 -----------------------
 * Fixed: fm-report now saves directly to /mnt/backupserver/__reports/ without subfolders.
 
-VERSION: 2.0.6 (2026-04-23)
+Version: 2.0.6
+Date: 2026-04-23
+
 NEW TOOLS & FEATURES ('userbackup')
 -----------------------
 * Reintroduced & Modernized: The userbackup script is back, completely rebuilt to match the 2.0 standard.
 * Accounting (SPCS/SIE): Copies Swedish accounting data to a separate extra folder.
 * Bookmarks: Explicitly extracts bookmarks for Chrome and Edge.
+
 MAIN MENU ('menu')
 -----------------------
 * Updated main menu to version 2.0.4. Added 'User Backup (userbackup)'.
 
-VERSION: 2.0.5 (2026-04-22)
+Version: 2.0.5
+Date: 2026-04-22
+
 BACKUP UTILITIES ('diskbackup' & 'macbackup')
 -----------------------
 * New interactive menu for DESTINATION: Choose to save the backup locally (e.g., USB) or to the backup server [DEFAULT].
 * Updated Workflow: Now asks for Source disk first, then Destination disk.
+
 SYSTEM & BUILD ENVIRONMENT
 -----------------------
 * Fixed build issues ('xz uncompress failed with error code 9') by clearing the 'work' directory.
 
-VERSION: 2.0.4 (2026-04-22)
+Version: 2.0.4
+Date: 2026-04-22
+
 NETWORK & FILE SHARING (NEW FEATURE)
 -----------------------
 * Implemented automatic network sharing (Samba) of /mnt/disk1 through /mnt/disk4 directly at startup.
 * The share is passwordless and read-only for secure access.
 
-VERSION: 2.0.3 (2026-04-21)
+Version: 2.0.3
+Date: 2026-04-21
+
 OVERALL CHANGES & ENVIRONMENT
 -----------------------
 * Introduced 'alina-env.sh' as a centralized configuration file.
 * Completely uniform design, layout, and color coding. Added standardized metadata headers to all scripts.
+
 MAIN MENU & AUTOSTART ('menu')
 -----------------------
 * 'set-order' renamed to 'menu' with an interactive interface that starts automatically.
+
 SCRIPT UPDATES
 -----------------------
 * Updated menus and flows in diskbackup, macbackup, hddmount, bitlocker, ntpass.
 * occt-report & fm-report: Bug fixes for timers and background warnings.
 
-VERSION: 2.0.2 (2026-04-17)
+Version: 2.0.2
+Date: 2026-04-17
+
 NEWS & IMPROVEMENTS
 -----------------------
 * arrange (Version 2.0.2): Introduces stable window management (tiling) without the Xfce panel.
 * New Packages: Added xdotool and wmctrl for window management.
 * System Stability: Permanently disabled OCCT update notifications for faster startup.
 
-VERSION: 2.0.1 (2026-04-08)
+Version: 2.0.1
+Date: 2026-04-08
+
 OVERALL CHANGES
 -----------------------
 * Migrated all technician scripts from Swedish to English.
 * Implemented uniform naming standard for reports on the backup server.
 * Retired the old "all-in-one" script 'userback'.
+
 SCRIPT UPDATES & NEWS
 -----------------------
 * Updates in smart, hardware, occt-report, bitlocker, hddmount, macmount, diskbackup, ntpass.
